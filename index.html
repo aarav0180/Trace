@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <div id="trace-app">
+      <!-- Main search bar -->
+      <div id="search-bar">
+        <div id="mode-indicator"></div>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search files, apps, or type > for commands..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="settings-btn" title="Settings">⚙</button>
+      </div>
+
+      <!-- Results container (expands below search bar) -->
+      <div id="results-container">
+        <ul id="results-list"></ul>
+      </div>
+
+      <!-- Shell command confirmation -->
+      <div id="shell-panel" class="hidden">
+        <div id="shell-header">Generated Command</div>
+        <pre id="shell-command"></pre>
+        <div id="shell-warning" class="hidden">⚠ This command may be destructive</div>
+        <div id="shell-actions">
+          <button id="shell-run" class="btn-run">▶ Run</button>
+          <button id="shell-cancel" class="btn-cancel">✕ Cancel</button>
+        </div>
+        <pre id="shell-output" class="hidden"></pre>
+      </div>
+
+      <!-- Chat mode panel -->
+      <div id="chat-panel" class="hidden">
+        <div id="chat-header">
+          <span id="chat-filename"></span>
+          <button id="chat-close" title="Exit chat (Esc)">✕</button>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="chat-loading" class="hidden">
+          <div class="pulse-loader"></div>
+        </div>
+      </div>
+
+      <!-- Settings overlay -->
+      <div id="settings-overlay" class="hidden">
+        <div id="settings-panel">
+          <h2>Engines</h2>
+
+          <label>Provider</label>
+          <select id="setting-provider">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google (Gemini)</option>
+          </select>
+
+          <label>Model</label>
+          <select id="setting-model">
+            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+            <option value="gpt-4o">GPT-4o (Smart)</option>
+            <option value="claude-sonnet-4-20250514">Claude Sonnet (Smart)</option>
+            <option value="claude-haiku-4-20250414">Claude Haiku (Fast)</option>
+            <option value="gemini-2.0-flash">Gemini Flash (Fast)</option>
+            <option value="gemini-1.5-pro">Gemini Pro (Smart)</option>
+          </select>
+
+          <label>OpenAI Key</label>
+          <input id="setting-openai" type="password" placeholder="sk-..." />
+
+          <label>Anthropic Key</label>
+          <input id="setting-anthropic" type="password" placeholder="sk-ant-..." />
+
+          <label>Google AI Key</label>
+          <input id="setting-google" type="password" placeholder="AI..." />
+
+          <div id="settings-actions">
+            <button id="settings-save" class="btn-run">Save</button>
+            <button id="settings-close" class="btn-cancel">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

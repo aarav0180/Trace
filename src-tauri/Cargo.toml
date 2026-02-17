@@ -1,0 +1,54 @@
+[package]
+name = "trace"
+version = "0.1.0"
+description = "The Intelligence Layer for your OS"
+authors = ["Aarav"]
+edition = "2021"
+
+[lib]
+name = "trace_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# File indexing & watching
+walkdir = "2"
+ignore = "0.4"
+notify = "7"
+
+# Fuzzy search
+fuzzy-matcher = "0.3"
+
+# System info
+sysinfo = "0.33"
+
+# Clipboard
+arboard = "3"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client for cloud APIs
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Dirs for config/cache paths
+dirs = "6"
+
+# Open files with default app
+open = "5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
