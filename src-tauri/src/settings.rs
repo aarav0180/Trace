@@ -12,7 +12,15 @@ pub struct Settings {
     /// Google AI (Gemini) API key
     pub google_key: Option<String>,
 
-    /// Active cloud provider: "openai", "anthropic", "google"
+    /// HuggingFace API key
+    #[serde(default)]
+    pub huggingface_key: Option<String>,
+
+    /// OpenRouter API key
+    #[serde(default)]
+    pub openrouter_key: Option<String>,
+
+    /// Active cloud provider: "openai", "anthropic", "google", "huggingface", "openrouter"
     pub active_provider: String,
 
     /// Active model name
@@ -32,6 +40,8 @@ impl Default for Settings {
             openai_key: None,
             anthropic_key: None,
             google_key: None,
+            huggingface_key: None,
+            openrouter_key: None,
             active_provider: "openai".to_string(),
             active_model: "gpt-4o-mini".to_string(),
             index_roots: vec![home.to_string_lossy().to_string()],
@@ -87,6 +97,8 @@ impl Settings {
             "openai" => self.openai_key.as_ref(),
             "anthropic" => self.anthropic_key.as_ref(),
             "google" => self.google_key.as_ref(),
+            "huggingface" => self.huggingface_key.as_ref(),
+            "openrouter" => self.openrouter_key.as_ref(),
             _ => None,
         }
     }

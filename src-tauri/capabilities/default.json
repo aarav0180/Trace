@@ -16,6 +16,7 @@
     "core:window:allow-set-focus",
     "core:window:allow-set-size",
     "core:window:allow-is-visible",
-    "core:window:allow-outer-size"
+    "core:window:allow-outer-size",
+    "core:window:allow-center"
   ]
 }

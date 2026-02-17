@@ -14,7 +14,7 @@
 
 <br/>
 
-<img src="https://img.shields.io/badge/Super+%5C-Launch_Trace-111111?style=for-the-badge&labelColor=000000" alt="Super+Backslash to Launch"/>
+<img src="https://img.shields.io/badge/Alt+Space-Launch_Trace-111111?style=for-the-badge&labelColor=000000" alt="Alt+Space to Launch"/>
 
 </div>
 
@@ -54,9 +54,11 @@ Built entirely in **Rust** and **TypeScript**, powered by **Tauri v2**, and desi
 - Commands are **never auto-executed** — always shown for confirmation first
 
 ### 🔑 Bring Your Own Key (BYOK)
-- Plug in your own API keys for **OpenAI**, **Anthropic**, or **Google Gemini**
+- Plug in your own API keys for **OpenAI**, **Anthropic**, **Google Gemini**, **HuggingFace**, or **OpenRouter**
 - Switch between providers and models from the built-in settings panel
+- Model dropdown filters to show only models available for the selected provider
 - Choose between fast/cheap models and smart/expensive ones per task
+- Open source models available via HuggingFace (Mistral, Llama, Phi, Qwen) and OpenRouter (DeepSeek, Gemma)
 
 ### 🎨 Noir UI
 - Pure black (`#000000`) floating window with high-contrast white text
@@ -70,14 +72,14 @@ Built entirely in **Rust** and **TypeScript**, powered by **Tauri v2**, and desi
 
 | Shortcut | Action |
 | :--- | :--- |
-| `Super + \` | Toggle Trace window |
-| `↑` / `↓` | Navigate search results |
+| `Alt + Space` | Toggle Trace window |
+| `↑` / `↓` | Navigate search results (auto-scrolls into view) |
 | `Enter` | Open file / launch app / send chat message / confirm command |
 | `Tab` | Enter Chat Mode on selected file |
 | `Escape` | Dismiss window / exit Chat Mode / cancel command |
 | `>` prefix | Activate NLP-to-Shell mode |
 
-> **Why `Super+\`?** It's a clean two-key combo that avoids conflicts with `Super+Space` (window manager), `Alt+Space` (GNOME window menu), `Ctrl+Space` (IME toggle), and virtually every other DE/WM binding.
+> **Why `Alt+Space`?** It avoids conflicts with tiling WM Super-key bindings (i3, Hyprland, Sway) while remaining a natural, fast two-key combo. If your DE uses Alt+Space for window menus, you can rebind it in the source.
 
 ---
 

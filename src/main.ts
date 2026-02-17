@@ -31,11 +31,44 @@ interface Settings {
   openai_key: string | null;
   anthropic_key: string | null;
   google_key: string | null;
+  huggingface_key: string | null;
+  openrouter_key: string | null;
   active_provider: string;
   active_model: string;
   index_roots: string[];
   max_results: number;
 }
+
+// ─── Provider → Model Map ────────────────────
+
+const PROVIDER_MODELS: Record<string, { value: string; label: string }[]> = {
+  openai: [
+    { value: "gpt-4o-mini", label: "GPT-4o Mini (Fast)" },
+    { value: "gpt-4o", label: "GPT-4o (Smart)" },
+    { value: "o3-mini", label: "o3 Mini (Reasoning)" },
+  ],
+  anthropic: [
+    { value: "claude-sonnet-4-20250514", label: "Claude Sonnet (Smart)" },
+    { value: "claude-haiku-4-20250414", label: "Claude Haiku (Fast)" },
+  ],
+  google: [
+    { value: "gemini-2.0-flash", label: "Gemini Flash (Fast)" },
+    { value: "gemini-1.5-pro", label: "Gemini Pro (Smart)" },
+  ],
+  huggingface: [
+    { value: "mistralai/Mistral-7B-Instruct-v0.3", label: "Mistral 7B Instruct" },
+    { value: "meta-llama/Meta-Llama-3.1-8B-Instruct", label: "Llama 3.1 8B" },
+    { value: "microsoft/Phi-3-mini-4k-instruct", label: "Phi-3 Mini 4K" },
+    { value: "Qwen/Qwen2.5-72B-Instruct", label: "Qwen 2.5 72B" },
+  ],
+  openrouter: [
+    { value: "mistralai/mistral-7b-instruct", label: "Mistral 7B" },
+    { value: "meta-llama/llama-3.1-8b-instruct", label: "Llama 3.1 8B" },
+    { value: "google/gemma-2-9b-it", label: "Gemma 2 9B" },
+    { value: "qwen/qwen-2.5-72b-instruct", label: "Qwen 2.5 72B" },
+    { value: "deepseek/deepseek-chat-v3-0324", label: "DeepSeek V3" },
+  ],
+};
 
 // ─── State ───────────────────────────────────
 
@@ -135,13 +168,23 @@ function escHtml(s: string): string {
 
 // ─── Window Resize ───────────────────────────
 
+const WINDOW_WIDTH = 680;
+
 async function resizeWindow(height: number) {
   const appWindow = getCurrentWindow();
   try {
-    const currentSize = await appWindow.outerSize();
-    await appWindow.setSize(new LogicalSize(currentSize.width, Math.max(64, Math.round(height))));
+    await appWindow.setSize(new LogicalSize(WINDOW_WIDTH, Math.max(64, Math.round(height))));
   } catch (e) {
     // Ignore resize errors during init
+  }
+}
+
+// ─── Scroll selected result into view ────────
+
+function scrollSelectedIntoView() {
+  const selected = resultsContainer.querySelector(".result-item.selected") as HTMLElement | null;
+  if (selected) {
+    selected.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 }
 
@@ -301,17 +344,38 @@ async function exitChatMode() {
 
 // ─── Settings ────────────────────────────────
 
+function populateModels(provider: string, currentModel?: string) {
+  const modelSelect = document.getElementById("setting-model") as HTMLSelectElement;
+  modelSelect.innerHTML = "";
+  const models = PROVIDER_MODELS[provider] || [];
+  models.forEach((m) => {
+    const opt = document.createElement("option");
+    opt.value = m.value;
+    opt.textContent = m.label;
+    modelSelect.appendChild(opt);
+  });
+  // Restore selection if the model exists in this provider
+  if (currentModel && models.some((m) => m.value === currentModel)) {
+    modelSelect.value = currentModel;
+  } else if (models.length > 0) {
+    modelSelect.value = models[0].value;
+  }
+}
+
 async function openSettings() {
   settingsOverlay.classList.remove("hidden");
   resizeWindow(600);
 
   try {
     const s = await invoke<Settings>("get_settings");
-    (document.getElementById("setting-provider") as HTMLSelectElement).value = s.active_provider;
-    (document.getElementById("setting-model") as HTMLSelectElement).value = s.active_model;
+    const providerSelect = document.getElementById("setting-provider") as HTMLSelectElement;
+    providerSelect.value = s.active_provider;
+    populateModels(s.active_provider, s.active_model);
     (document.getElementById("setting-openai") as HTMLInputElement).value = s.openai_key || "";
     (document.getElementById("setting-anthropic") as HTMLInputElement).value = s.anthropic_key || "";
     (document.getElementById("setting-google") as HTMLInputElement).value = s.google_key || "";
+    (document.getElementById("setting-huggingface") as HTMLInputElement).value = s.huggingface_key || "";
+    (document.getElementById("setting-openrouter") as HTMLInputElement).value = s.openrouter_key || "";
   } catch (e) {
     console.error("[trace] Settings load error:", e);
   }
@@ -324,6 +388,8 @@ async function saveSettings() {
     openai_key: (document.getElementById("setting-openai") as HTMLInputElement).value || null,
     anthropic_key: (document.getElementById("setting-anthropic") as HTMLInputElement).value || null,
     google_key: (document.getElementById("setting-google") as HTMLInputElement).value || null,
+    huggingface_key: (document.getElementById("setting-huggingface") as HTMLInputElement).value || null,
+    openrouter_key: (document.getElementById("setting-openrouter") as HTMLInputElement).value || null,
     index_roots: ["~"], // default
     max_results: 20,
   };
@@ -379,6 +445,7 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
       if (mode === "search" && results.length > 0) {
         selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
         renderResults();
+        scrollSelectedIntoView();
       }
       break;
 
@@ -387,6 +454,7 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
       if (mode === "search" && results.length > 0) {
         selectedIndex = Math.max(selectedIndex - 1, 0);
         renderResults();
+        scrollSelectedIntoView();
       }
       break;
 
@@ -436,6 +504,12 @@ chatClose.addEventListener("click", exitChatMode);
 settingsBtn.addEventListener("click", openSettings);
 settingsSave.addEventListener("click", saveSettings);
 settingsCloseBtn.addEventListener("click", closeSettings);
+
+// Provider change → update available models
+document.getElementById("setting-provider")!.addEventListener("change", (e) => {
+  const provider = (e.target as HTMLSelectElement).value;
+  populateModels(provider);
+});
 
 // ─── Init ────────────────────────────────────
 

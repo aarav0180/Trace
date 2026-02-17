@@ -29,6 +29,8 @@ impl LlmClient {
             "openai" => self.prompt_openai(api_key, &settings.active_model, system, user_msg).await,
             "anthropic" => self.prompt_anthropic(api_key, &settings.active_model, system, user_msg).await,
             "google" => self.prompt_google(api_key, &settings.active_model, system, user_msg).await,
+            "huggingface" => self.prompt_huggingface(api_key, &settings.active_model, system, user_msg).await,
+            "openrouter" => self.prompt_openrouter(api_key, &settings.active_model, system, user_msg).await,
             other => Err(format!("Unknown provider: {}", other)),
         }
     }
@@ -152,5 +154,90 @@ impl LlmClient {
             .as_str()
             .map(|s| s.to_string())
             .ok_or_else(|| format!("Unexpected Google AI response format: {}", data))
+    }
+
+    /// HuggingFace Inference API (OpenAI-compatible chat endpoint)
+    async fn prompt_huggingface(
+        &self,
+        api_key: &str,
+        model: &str,
+        system: &str,
+        user_msg: &str,
+    ) -> Result<String, String> {
+        let url = format!(
+            "https://api-inference.huggingface.co/models/{}/v1/chat/completions",
+            model
+        );
+
+        let body = json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": system },
+                { "role": "user", "content": user_msg }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 4096
+        });
+
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("HuggingFace request failed: {}", e))?;
+
+        let data: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse HuggingFace response: {}", e))?;
+
+        data["choices"][0]["message"]["content"]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or_else(|| format!("Unexpected HuggingFace response format: {}", data))
+    }
+
+    /// OpenRouter API (OpenAI-compatible)
+    async fn prompt_openrouter(
+        &self,
+        api_key: &str,
+        model: &str,
+        system: &str,
+        user_msg: &str,
+    ) -> Result<String, String> {
+        let body = json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": system },
+                { "role": "user", "content": user_msg }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 4096
+        });
+
+        let resp = self
+            .http
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .header("HTTP-Referer", "https://github.com/trace-app")
+            .header("X-Title", "Trace")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("OpenRouter request failed: {}", e))?;
+
+        let data: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse OpenRouter response: {}", e))?;
+
+        data["choices"][0]["message"]["content"]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or_else(|| format!("Unexpected OpenRouter response format: {}", data))
     }
 }

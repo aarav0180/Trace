@@ -65,17 +65,12 @@
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
             <option value="google">Google (Gemini)</option>
+            <option value="huggingface">HuggingFace</option>
+            <option value="openrouter">OpenRouter</option>
           </select>
 
           <label>Model</label>
-          <select id="setting-model">
-            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
-            <option value="gpt-4o">GPT-4o (Smart)</option>
-            <option value="claude-sonnet-4-20250514">Claude Sonnet (Smart)</option>
-            <option value="claude-haiku-4-20250414">Claude Haiku (Fast)</option>
-            <option value="gemini-2.0-flash">Gemini Flash (Fast)</option>
-            <option value="gemini-1.5-pro">Gemini Pro (Smart)</option>
-          </select>
+          <select id="setting-model"></select>
 
           <label>OpenAI Key</label>
           <input id="setting-openai" type="password" placeholder="sk-..." />
@@ -85,6 +80,12 @@
 
           <label>Google AI Key</label>
           <input id="setting-google" type="password" placeholder="AI..." />
+
+          <label>HuggingFace Key</label>
+          <input id="setting-huggingface" type="password" placeholder="hf_..." />
+
+          <label>OpenRouter Key</label>
+          <input id="setting-openrouter" type="password" placeholder="sk-or-..." />
 
           <div id="settings-actions">
             <button id="settings-save" class="btn-run">Save</button>

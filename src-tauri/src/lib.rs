@@ -20,10 +20,19 @@ use tokio::sync::RwLock;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let settings = Settings::load();
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/home"));
     let roots: Vec<PathBuf> = settings
         .index_roots
         .iter()
-        .map(PathBuf::from)
+        .map(|r| {
+            if r == "~" {
+                home.clone()
+            } else if r.starts_with("~/") {
+                home.join(&r[2..])
+            } else {
+                PathBuf::from(r)
+            }
+        })
         .collect();
 
     let index: FileIndex = indexer::new_index();
@@ -65,10 +74,11 @@ pub fn run() {
                 watcher::start_watcher(index_for_watch, roots_for_watch).await;
             });
 
-            // Register global shortcut: Super+\ to toggle window
+            // Register global shortcut: Alt+Space to toggle window
+            // Works on Arch WMs (i3/Hyprland/Sway) without conflicting with Super-based binds
             use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
             let handle_shortcut = handle.clone();
-            app.global_shortcut().on_shortcut("Super+Backslash", move |_app, _shortcut, event| {
+            app.global_shortcut().on_shortcut("Alt+Space", move |_app, _shortcut, event| {
                 // Only act on key press, ignore key release
                 if event.state != ShortcutState::Pressed {
                     return;
@@ -79,6 +89,7 @@ pub fn run() {
                     } else {
                         let _ = window.show();
                         let _ = window.set_focus();
+                        let _ = window.center();
                     }
                 }
             })?;
