@@ -15,7 +15,7 @@
 
 <br/>
 
-<img src="https://img.shields.io/badge/Super+T-Launch_Trace-111111?style=for-the-badge&labelColor=000000" alt="Super+T to Launch"/>
+<img src="https://img.shields.io/badge/Super+F-Launch_Trace-111111?style=for-the-badge&labelColor=000000" alt="Super+T to Launch"/>
 
 </div>
 
@@ -88,7 +88,7 @@ Built entirely in **Rust** and **TypeScript**, powered by **Tauri v2**, with cro
 
 | Shortcut | Action |
 | :--- | :--- |
-| `Super + T`* | Toggle Trace window (registered system-wide) |
+| `Super + F`* | Toggle Trace window (registered system-wide) |
 | `↑` / `↓` | Navigate search results (auto-scrolls into view) |
 | `Enter` | Open file / launch app / send chat message / confirm command |
 | `Tab` | Enter Chat Mode on selected file |
@@ -257,7 +257,7 @@ Type the app name → press `Enter`.
 ### System Shortcut
 On first launch, Trace registers a system-wide keyboard shortcut and shows a toast notification:
 
-> *Press **Super + T** to launch Trace from anywhere*
+> *Press **Super + F** to launch Trace from anywhere*
 
 If `Super+T` is already taken by your DE, Trace automatically picks the next free key. You can check which shortcut was assigned in `~/.config/trace/shortcut`.
 
