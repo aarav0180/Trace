@@ -6,9 +6,6 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "global-shortcut:allow-register",
-    "global-shortcut:allow-unregister",
-    "global-shortcut:allow-is-registered",
     "shell:allow-execute",
     "shell:allow-open",
     "core:window:allow-show",
@@ -17,6 +14,9 @@
     "core:window:allow-set-size",
     "core:window:allow-is-visible",
     "core:window:allow-outer-size",
-    "core:window:allow-center"
+    "core:window:allow-center",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-resizable",
+    "core:window:allow-set-always-on-top"
   ]
 }

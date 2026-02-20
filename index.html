@@ -13,6 +13,9 @@
 
   <body>
     <div id="trace-app">
+      <!-- Drag handle for frameless window -->
+      <div id="drag-region" data-tauri-drag-region></div>
+
       <!-- Main search bar -->
       <div id="search-bar">
         <div id="mode-indicator"></div>
@@ -54,6 +57,9 @@
           <div class="pulse-loader"></div>
         </div>
       </div>
+
+      <!-- Shortcut notification toast -->
+      <div id="shortcut-toast"></div>
 
       <!-- Settings overlay -->
       <div id="settings-overlay" class="hidden">

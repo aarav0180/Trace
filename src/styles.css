@@ -55,12 +55,27 @@ html, body {
   overflow: hidden;
 }
 
+/* ─── DRAG REGION (frameless window move) ── */
+
+#drag-region {
+  height: 8px;
+  width: 100%;
+  cursor: grab;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+#drag-region:active {
+  cursor: grabbing;
+}
+
 /* ─── SEARCH BAR ──────────────────────── */
 
 #search-bar {
   display: flex;
   align-items: center;
-  height: 64px;
+  height: 56px;
   padding: 0 20px;
   gap: 12px;
   background: var(--bg);
@@ -130,7 +145,7 @@ html, body {
 }
 
 #results-container.expanded {
-  max-height: 420px;
+  max-height: 680px;
   border-top-color: var(--border);
 }
 
@@ -509,4 +524,46 @@ html, body {
 #search-bar, .result-item, #shell-actions, #chat-header, #settings-actions {
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* ─── SHORTCUT TOAST ──────────────────── */
+
+#shortcut-toast {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  opacity: 0;
+  transform: translateY(100%);
+  transition: opacity 400ms ease, transform 400ms ease;
+  z-index: 50;
+  pointer-events: none;
+}
+
+#shortcut-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#shortcut-toast .shortcut-key {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: 0.02em;
 }

@@ -35,34 +35,44 @@ pub async fn search_files(
 #[tauri::command]
 pub async fn open_result(path: String, kind: String) -> Result<(), String> {
     match kind.as_str() {
-        "App" => {
-            // For apps, the path is the .desktop file; we need to re-parse exec
-            let content = std::fs::read_to_string(&path)
-                .map_err(|e| format!("Cannot read .desktop file: {}", e))?;
-
-            // Quick parse for Exec=
-            let exec = content
-                .lines()
-                .find(|l| l.starts_with("Exec="))
-                .map(|l| {
-                    l.strip_prefix("Exec=")
-                        .unwrap_or("")
-                        .replace("%f", "")
-                        .replace("%F", "")
-                        .replace("%u", "")
-                        .replace("%U", "")
-                        .trim()
-                        .to_string()
-                })
-                .ok_or("No Exec= field found in .desktop file")?;
-
-            launcher::launch_app(&exec)
-        }
+        "App" => open_app(&path),
         _ => {
             // Open file with default application
             open::that(&path).map_err(|e| format!("Failed to open: {}", e))
         }
     }
+}
+
+/// Open an app entry. On Linux, re-parse the .desktop file for Exec=.
+/// On Windows, launch the .lnk shortcut directly.
+#[cfg(target_os = "linux")]
+fn open_app(path: &str) -> Result<(), String> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("Cannot read .desktop file: {}", e))?;
+
+    let exec = content
+        .lines()
+        .find(|l| l.starts_with("Exec="))
+        .map(|l| {
+            l.strip_prefix("Exec=")
+                .unwrap_or("")
+                .replace("%f", "")
+                .replace("%F", "")
+                .replace("%u", "")
+                .replace("%U", "")
+                .trim()
+                .to_string()
+        })
+        .ok_or("No Exec= field found in .desktop file")?;
+
+    launcher::launch_app(&exec)
+}
+
+/// On Windows, open the .lnk shortcut (the OS knows how to follow it).
+#[cfg(target_os = "windows")]
+fn open_app(path: &str) -> Result<(), String> {
+    // The path stored is the .lnk file itself — open::that will follow the shortcut
+    open::that(path).map_err(|e| format!("Failed to launch app: {}", e))
 }
 
 // ─── SETTINGS ────────────────────────────────────────────
@@ -142,6 +152,19 @@ pub async fn exit_chat_mode(state: State<'_, AppState>) -> Result<(), String> {
     let mut chat = state.chat_file_content.write().await;
     *chat = None;
     Ok(())
+}
+
+// ─── REGISTERED SHORTCUT ─────────────────────────────────
+
+#[tauri::command]
+pub fn get_registered_shortcut() -> Result<String, String> {
+    let path = dirs::config_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join("trace")
+        .join("shortcut");
+    std::fs::read_to_string(&path)
+        .map(|s| s.trim().to_string())
+        .map_err(|_| "No shortcut registered yet".to_string())
 }
 
 // ─── SYSTEM INFO ─────────────────────────────────────────

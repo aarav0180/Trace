@@ -118,7 +118,7 @@ function renderResults() {
 
   if (results.length === 0) {
     resultsContainer.classList.remove("expanded");
-    resizeWindow(64);
+    resizeWindow(BASE_HEIGHT);
     return;
   }
 
@@ -138,8 +138,10 @@ function renderResults() {
       }
     }
 
-    // Shorten path for display
-    const displayPath = r.path.replace(/^\/home\/[^/]+/, "~");
+    // Shorten path for display (cross-platform: Linux /home/user & Windows C:\Users\user)
+    const displayPath = r.path
+      .replace(/^\/home\/[^/]+/, "~")
+      .replace(/^[A-Za-z]:\\Users\\[^\\]+/, "~");
 
     li.innerHTML = `
       <div class="result-icon">${getIcon(r.kind)}</div>
@@ -157,8 +159,8 @@ function renderResults() {
 
   resultsContainer.classList.add("expanded");
 
-  // Resize window to fit results
-  const contentHeight = 64 + Math.min(results.length * 50, 420) + 12;
+  // Resize window to fit results (show all results up to max window height)
+  const contentHeight = BASE_HEIGHT + Math.min(results.length * 50, 680) + 12;
   resizeWindow(contentHeight);
 }
 
@@ -168,12 +170,13 @@ function escHtml(s: string): string {
 
 // ─── Window Resize ───────────────────────────
 
-const WINDOW_WIDTH = 680;
+const WINDOW_WIDTH = 700;
+const BASE_HEIGHT = 72; // drag-region (8) + search-bar (56) + padding (8)
 
 async function resizeWindow(height: number) {
   const appWindow = getCurrentWindow();
   try {
-    await appWindow.setSize(new LogicalSize(WINDOW_WIDTH, Math.max(64, Math.round(height))));
+    await appWindow.setSize(new LogicalSize(WINDOW_WIDTH, Math.max(BASE_HEIGHT, Math.round(height))));
   } catch (e) {
     // Ignore resize errors during init
   }
@@ -270,7 +273,7 @@ function exitShellMode() {
   shellPanel.classList.add("hidden");
   shellOutput.classList.add("hidden");
   searchInput.value = "";
-  resizeWindow(64);
+  resizeWindow(BASE_HEIGHT);
 }
 
 // ─── Chat Mode ───────────────────────────────
@@ -282,7 +285,7 @@ async function enterChatMode(index: number) {
   try {
     const preview = await invoke<string>("enter_chat_mode", { path: r.path });
     mode = "chat";
-    const fileName = r.path.split("/").pop() || r.name;
+    const fileName = r.path.split(/[\/\\]/).pop() || r.name;
     chatFilename.textContent = fileName;
     modeIndicator.textContent = "CHAT";
     modeIndicator.classList.add("visible");
@@ -335,7 +338,7 @@ async function exitChatMode() {
   searchInput.value = "";
   searchInput.placeholder = "Search files, apps, or type > for commands...";
   results = [];
-  resizeWindow(64);
+  resizeWindow(BASE_HEIGHT);
 
   try {
     await invoke("exit_chat_mode");
@@ -404,7 +407,7 @@ async function saveSettings() {
 
 function closeSettings() {
   settingsOverlay.classList.add("hidden");
-  resizeWindow(mode === "search" ? 64 : 440);
+  resizeWindow(mode === "search" ? BASE_HEIGHT : 440);
 }
 
 // ─── Event Wiring ────────────────────────────
@@ -515,8 +518,35 @@ document.getElementById("setting-provider")!.addEventListener("change", (e) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   searchInput.focus();
-  resizeWindow(64);
+  resizeWindow(BASE_HEIGHT);
+
+  // Show which system shortcut was registered
+  showRegisteredShortcut();
 });
+
+async function showRegisteredShortcut() {
+  try {
+    const shortcut = await invoke<string>("get_registered_shortcut");
+    if (!shortcut || shortcut === "(none)") return;
+
+    const toast = document.getElementById("shortcut-toast");
+    if (!toast) return;
+
+    // Build key badges: "Super+T" → <span>Super</span> + <span>T</span>
+    const keys = shortcut.split("+").map(
+      (k) => `<span class="shortcut-key">${escHtml(k.trim())}</span>`
+    );
+    toast.innerHTML = `Press ${keys.join(" + ")} to launch Trace from anywhere`;
+
+    // Slide in, hold, slide out
+    requestAnimationFrame(() => {
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 4000);
+    });
+  } catch {
+    // No shortcut registered — silently skip
+  }
+}
 
 // Keep focus on search input
 window.addEventListener("focus", () => searchInput.focus());

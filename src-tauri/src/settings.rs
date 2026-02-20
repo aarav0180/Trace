@@ -35,7 +35,13 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/home"));
+        let home = dirs::home_dir().unwrap_or_else(|| {
+            if cfg!(windows) {
+                PathBuf::from(std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users".to_string()))
+            } else {
+                PathBuf::from("/home")
+            }
+        });
         Self {
             openai_key: None,
             anthropic_key: None,
@@ -54,7 +60,7 @@ impl Settings {
     /// Path to settings file
     fn config_path() -> PathBuf {
         dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
+            .unwrap_or_else(|| std::env::temp_dir())
             .join("trace")
             .join("settings.json")
     }
