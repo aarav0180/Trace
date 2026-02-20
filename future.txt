@@ -1,0 +1,174 @@
+═══════════════════════════════════════════════════════════════
+  TRACE — Future Release Checklist
+  Everything you need to know for shipping new versions
+═══════════════════════════════════════════════════════════════
+
+
+─── HOW TO CUT A RELEASE ─────────────────────────────────────
+
+1. Bump version in ALL THREE files (must match):
+     - package.json          →  "version": "0.X.0"
+     - src-tauri/Cargo.toml  →  version = "0.X.0"
+     - src-tauri/tauri.conf.json  →  "version": "0.X.0"
+
+2. Update Cargo.lock:
+     cd src-tauri && cargo check
+
+3. Commit:
+     git add -A
+     git commit -m "v0.X.0: <short description>"
+
+4. Tag (annotated):
+     git tag -a v0.X.0 -m "v0.X.0: <description>"
+
+5. Push commit + tag together:
+     git push origin main --tags
+
+6. GitHub Actions will automatically:
+     - Build on Ubuntu 22.04  → .deb, .AppImage, .rpm
+     - Build on Windows       → .msi, .exe (NSIS)
+     - Create a GitHub Release at the tag with all artifacts
+
+7. Monitor:  https://github.com/aarav0180/Trace/actions
+
+
+─── VERSION FORMAT ────────────────────────────────────────────
+
+Use semantic versioning: vMAJOR.MINOR.PATCH
+  - PATCH (v0.2.1): bug fixes, typos, small tweaks
+  - MINOR (v0.3.0): new features, new DE support, UI changes
+  - MAJOR (v1.0.0): breaking changes, major rewrites
+
+
+─── RELEASE ARTIFACTS (auto-generated) ────────────────────────
+
+Linux:
+  trace_0.X.0_amd64.deb       — Debian/Ubuntu installer
+  trace_0.X.0_amd64.AppImage  — Universal portable (any distro)
+  trace-0.X.0-1.x86_64.rpm    — Fedora/RHEL installer
+
+Windows:
+  Trace_0.X.0_x64-setup.exe   — NSIS installer (recommended)
+  Trace_0.X.0_x64_en-US.msi   — Windows Installer package
+
+
+─── BEFORE EACH RELEASE ──────────────────────────────────────
+
+□  All three version numbers match
+□  `cargo check` passes with 0 errors 0 warnings
+□  `npx tsc --noEmit` passes clean
+□  `npm run tauri dev` launches correctly
+□  Test file search, app launch, shell mode, chat mode
+□  Kill any leftover Trace process before testing:
+     pkill -f "target/debug/trace" || true
+□  Shortcut detection works (check terminal output for
+     "[trace][shortcut] ✓ System shortcut: Super+X")
+□  README is up to date with any new features
+□  No leftover debug println!() or console.log() spam
+
+
+─── CI WORKFLOW LOCATION ──────────────────────────────────────
+
+.github/workflows/release.yml
+
+Triggers on: push of any tag matching "v*"
+Runs on: ubuntu-22.04 + windows-latest (parallel)
+Uses: tauri-apps/tauri-action@v0 (handles build + upload)
+Token: GITHUB_TOKEN (auto-provided, no secrets needed)
+
+
+─── COMMON ISSUES ─────────────────────────────────────────────
+
+"App exits immediately on `tauri dev`"
+  → A previous instance is still running in the background.
+  → Fix: pkill -f "target/debug/trace" && npm run tauri dev
+
+"CI build fails on Linux with missing deps"
+  → The workflow installs: libwebkit2gtk-4.1-dev,
+    libappindicator3-dev, librsvg2-dev, patchelf,
+    libgtk-3-dev, libsoup-3.0-dev, libjavascriptcoregtk-4.1-dev
+  → If a new Tauri version needs more, update the apt list
+    in .github/workflows/release.yml
+
+"Cargo.lock not updated"
+  → Always run `cargo check` after bumping Cargo.toml version
+  → Commit the updated Cargo.lock
+
+"Version mismatch"
+  → tauri-action reads version from tauri.conf.json for
+    naming the artifacts. If it doesn't match Cargo.toml
+    or package.json, things get confusing. Keep all three
+    in sync.
+
+"Release says Draft / doesn't appear"
+  → releaseDraft is set to false in the workflow.
+  → If you want draft releases for review before publishing,
+    change releaseDraft: true in release.yml
+
+"Windows code signing"
+  → Not configured yet. Windows will show SmartScreen warning.
+  → To fix, get an EV code signing cert and add these secrets:
+       TAURI_SIGNING_PRIVATE_KEY
+       TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  → See: https://v2.tauri.app/distribute/sign/windows/
+
+
+─── ADDING macOS BUILDS (FUTURE) ─────────────────────────────
+
+Add to the matrix in release.yml:
+  - platform: macos-latest
+    target: aarch64-apple-darwin
+  - platform: macos-latest
+    target: x86_64-apple-darwin
+
+This will produce .dmg and .app bundles.
+Requires Apple Developer ID for signing ($99/year).
+Without signing, users get "app is damaged" Gatekeeper errors.
+
+
+─── ADDING ARM64 LINUX BUILDS (FUTURE) ───────────────────────
+
+Add to the matrix:
+  - platform: ubuntu-22.04
+    target: aarch64-unknown-linux-gnu
+
+Requires cross-compilation toolchain (cross or cargo-zigbuild).
+The apt deps also need arm64 variants.
+
+
+─── ROADMAP PHASES ────────────────────────────────────────────
+
+v0.2.0 [DONE]
+  ✓ Cross-platform (Linux + Windows)
+  ✓ System shortcut registration (per DE)
+  ✓ Single-instance toggle
+  ✓ Key-conflict detection
+  ✓ CI/CD release pipeline
+
+v0.3.0 — Phase 2: Smart Clipboard & Screen Query
+  □ Screenshot capture → send to vision model
+  □ Clipboard history with search
+  □ Context-aware paste (smart formatting)
+
+v0.4.0 — Phase 4: God Mode Dashboard
+  □ trace:// deep-linking protocol
+  □ Shift-hold preview (peek file contents)
+  □ System dashboard (CPU, RAM, disk, network)
+  □ Quick actions (kill process, empty trash, etc.)
+
+v1.0.0 — Stable Release
+  □ macOS support
+  □ Auto-update (tauri-plugin-updater)
+  □ Code signing (Windows + macOS)
+  □ Plugin/extension system
+  □ Themes (beyond Noir)
+
+
+─── QUICK REFERENCE ───────────────────────────────────────────
+
+Repo:     https://github.com/aarav0180/Trace
+Actions:  https://github.com/aarav0180/Trace/actions
+Releases: https://github.com/aarav0180/Trace/releases
+Config:   ~/.config/trace/settings.json
+Shortcut: ~/.config/trace/shortcut
+Logs:     stdout (run from terminal to see)
