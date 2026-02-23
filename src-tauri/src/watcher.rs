@@ -80,6 +80,9 @@ fn handle_event(index: FileIndex, event: Event) {
                     kind,
                     size: metadata.len(),
                     modified,
+                    icon_path: None,
+                    keywords: None,
+                    generic_name: None,
                 };
 
                 let index = index.clone();

@@ -13,6 +13,15 @@ pub struct FileEntry {
     pub kind: EntryKind,
     pub size: u64,
     pub modified: u64, // unix timestamp
+    /// Resolved filesystem path to the app icon (Apps only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_path: Option<String>,
+    /// Semi-colon separated keywords from .desktop (Apps only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keywords: Option<String>,
+    /// Human-readable category / generic name (Apps only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generic_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -73,6 +82,9 @@ pub async fn build_index(index: FileIndex, roots: Vec<PathBuf>) {
                     kind,
                     size: metadata.len(),
                     modified,
+                    icon_path: None,
+                    keywords: None,
+                    generic_name: None,
                 });
             }
         }

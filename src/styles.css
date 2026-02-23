@@ -239,6 +239,43 @@ html, body {
   opacity: 1;
 }
 
+/* ─── MATH RESULT ─────────────────────── */
+
+.result-item.math-result {
+  border-bottom: 1px solid var(--border);
+}
+
+.math-icon {
+  color: var(--accent) !important;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.math-value {
+  font-family: var(--font-mono);
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+}
+
+/* ─── APP ICON IMAGE ──────────────────── */
+
+.result-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* ─── GRAPH CANVAS ────────────────────── */
+
+#graph-canvas {
+  width: 100%;
+  height: 200px;
+  border-top: 1px solid var(--border);
+  display: block;
+}
+
 /* ─── SHELL PANEL ─────────────────────── */
 
 #shell-panel {

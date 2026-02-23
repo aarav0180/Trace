@@ -1,6 +1,6 @@
 [package]
 name = "trace"
-version = "0.2.0"
+version = "0.3.0"
 description = "The Intelligence Layer for your OS"
 authors = ["Aarav"]
 edition = "2021"
@@ -45,6 +45,9 @@ dirs = "6"
 
 # Open files with default app
 open = "5"
+
+# Math expression evaluator
+meval = "0.2"
 
 [profile.release]
 opt-level = 3

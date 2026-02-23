@@ -14,6 +14,20 @@ interface SearchResult {
   kind: "File" | "Directory" | "App";
   score: number;
   matched_indices: number[];
+  icon_path?: string | null;
+  generic_name?: string | null;
+}
+
+interface CalcResult {
+  expression: string;
+  result: number;
+  display: string;
+  has_variable: boolean;
+}
+
+interface GraphPoint {
+  x: number;
+  y: number;
 }
 
 interface ShellTranslation {
@@ -78,6 +92,10 @@ let mode: AppMode = "search";
 let results: SearchResult[] = [];
 let selectedIndex = 0;
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+let currentCalcResult: CalcResult | null = null;
+
+// Icon data-URI cache (icon_path → data:image/... string)
+const iconCache = new Map<string, string>();
 
 // ─── DOM Elements ────────────────────────────
 
@@ -100,6 +118,7 @@ const settingsBtn = document.getElementById("settings-btn") as HTMLElement;
 const settingsOverlay = document.getElementById("settings-overlay") as HTMLElement;
 const settingsSave = document.getElementById("settings-save") as HTMLElement;
 const settingsCloseBtn = document.getElementById("settings-close") as HTMLElement;
+const graphCanvas = document.getElementById("graph-canvas") as HTMLCanvasElement;
 
 // ─── Icon Helper ─────────────────────────────
 
@@ -115,13 +134,52 @@ function getIcon(kind: string): string {
 
 function renderResults() {
   resultsList.innerHTML = "";
+  hideGraph();
 
-  if (results.length === 0) {
+  const hasMath = currentCalcResult !== null;
+  const hasResults = results.length > 0;
+
+  if (!hasMath && !hasResults) {
     resultsContainer.classList.remove("expanded");
     resizeWindow(BASE_HEIGHT);
     return;
   }
 
+  // ── Math result row (always first) ─────────
+  if (hasMath && currentCalcResult) {
+    const li = document.createElement("li");
+    li.className = "result-item math-result" + (selectedIndex === -1 ? " selected" : "");
+    li.dataset.index = "-1";
+
+    if (currentCalcResult.has_variable) {
+      li.innerHTML = `
+        <div class="result-icon math-icon">=</div>
+        <div class="result-info">
+          <div class="result-name">${escHtml(currentCalcResult.display)}</div>
+          <div class="result-path">Press Enter to plot graph</div>
+        </div>
+        <span class="result-kind">GRAPH</span>
+      `;
+      li.addEventListener("click", () => showGraph(currentCalcResult!.expression));
+    } else {
+      li.innerHTML = `
+        <div class="result-icon math-icon">=</div>
+        <div class="result-info">
+          <div class="result-name math-value">${escHtml(currentCalcResult.display)}</div>
+          <div class="result-path">${escHtml(currentCalcResult.expression)}</div>
+        </div>
+        <span class="result-kind">CALC</span>
+      `;
+      li.addEventListener("click", () => {
+        // Copy result to clipboard
+        navigator.clipboard.writeText(currentCalcResult!.display).catch(() => {});
+      });
+    }
+
+    resultsList.appendChild(li);
+  }
+
+  // ── File / App result rows ─────────────────
   results.forEach((r, i) => {
     const li = document.createElement("li");
     li.className = `result-item${i === selectedIndex ? " selected" : ""}`;
@@ -138,16 +196,28 @@ function renderResults() {
       }
     }
 
-    // Shorten path for display (cross-platform: Linux /home/user & Windows C:\Users\user)
+    // Shorten path for display
     const displayPath = r.path
       .replace(/^\/home\/[^/]+/, "~")
       .replace(/^[A-Za-z]:\\Users\\[^\\]+/, "~");
 
+    // Subtitle: generic name if available
+    const subtitle = r.generic_name
+      ? `${escHtml(r.generic_name)} — ${escHtml(displayPath)}`
+      : escHtml(displayPath);
+
+    // Icon: use a placeholder; real icon loaded async for App entries
+    const iconId = `icon-${i}`;
+    const iconHtml =
+      r.kind === "App" && r.icon_path
+        ? `<div class="result-icon" id="${iconId}"><img class="result-icon-img" src="" alt="" /></div>`
+        : `<div class="result-icon">${getIcon(r.kind)}</div>`;
+
     li.innerHTML = `
-      <div class="result-icon">${getIcon(r.kind)}</div>
+      ${iconHtml}
       <div class="result-info">
         <div class="result-name">${nameHtml}</div>
-        <div class="result-path">${escHtml(displayPath)}</div>
+        <div class="result-path">${subtitle}</div>
       </div>
       <span class="result-kind">${r.kind}</span>
       <span class="result-tab-hint">Tab to chat</span>
@@ -155,13 +225,45 @@ function renderResults() {
 
     li.addEventListener("click", () => openResult(i));
     resultsList.appendChild(li);
+
+    // Load icon asynchronously for App entries
+    if (r.kind === "App" && r.icon_path) {
+      loadAppIcon(r.icon_path, iconId);
+    }
   });
 
   resultsContainer.classList.add("expanded");
 
-  // Resize window to fit results (show all results up to max window height)
-  const contentHeight = BASE_HEIGHT + Math.min(results.length * 50, 680) + 12;
+  const itemCount = results.length + (hasMath ? 1 : 0);
+  const contentHeight = BASE_HEIGHT + Math.min(itemCount * 50, 680) + 12;
   resizeWindow(contentHeight);
+}
+
+// ─── App Icon Loader ─────────────────────────
+
+async function loadAppIcon(iconPath: string, elementId: string) {
+  // Check cache first
+  let dataUri = iconCache.get(iconPath);
+  if (!dataUri) {
+    try {
+      const result = await invoke<string | null>("get_app_icon", { path: iconPath });
+      if (result) {
+        dataUri = result;
+        iconCache.set(iconPath, dataUri);
+      }
+    } catch {
+      return; // icon load failed — keep text fallback
+    }
+  }
+
+  if (!dataUri) return;
+
+  const container = document.getElementById(elementId);
+  if (!container) return;
+  const img = container.querySelector(".result-icon-img") as HTMLImageElement | null;
+  if (img) {
+    img.src = dataUri;
+  }
 }
 
 function escHtml(s: string): string {
@@ -191,13 +293,137 @@ function scrollSelectedIntoView() {
   }
 }
 
+// ─── Graph Rendering ─────────────────────────
+
+async function showGraph(expression: string) {
+  try {
+    const points = await invoke<GraphPoint[]>("evaluate_graph", {
+      query: expression,
+      xMin: -10,
+      xMax: 10,
+      steps: 200,
+    });
+
+    if (points.length < 2) return;
+
+    graphCanvas.classList.remove("hidden");
+    drawGraph(points, expression);
+
+    // Resize to fit graph
+    const itemCount = results.length + 1; // +1 for math row
+    const graphHeight = 220;
+    const contentHeight = BASE_HEIGHT + Math.min(itemCount * 50, 300) + graphHeight + 24;
+    resizeWindow(contentHeight);
+  } catch (e) {
+    console.error("[trace] Graph error:", e);
+  }
+}
+
+function drawGraph(points: GraphPoint[], expression: string) {
+  const canvas = graphCanvas;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 660;
+  const cssH = 200;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  canvas.style.height = `${cssH}px`;
+
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(dpr, dpr);
+
+  const W = cssW;
+  const H = cssH;
+  const pad = 40;
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#0a0a0a";
+  ctx.fillRect(0, 0, W, H);
+
+  // Bounds
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const xMin = Math.min(...xs);
+  const xMax = Math.max(...xs);
+  let yMin = Math.min(...ys);
+  let yMax = Math.max(...ys);
+  if (yMin === yMax) { yMin -= 1; yMax += 1; }
+
+  const xRange = xMax - xMin || 1;
+  const yRange = yMax - yMin || 1;
+
+  const toX = (x: number) => pad + ((x - xMin) / xRange) * (W - 2 * pad);
+  const toY = (y: number) => H - pad - ((y - yMin) / yRange) * (H - 2 * pad);
+
+  // Grid lines
+  ctx.strokeStyle = "#1a1a1a";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const gy = pad + (i / 4) * (H - 2 * pad);
+    ctx.beginPath(); ctx.moveTo(pad, gy); ctx.lineTo(W - pad, gy); ctx.stroke();
+    const gx = pad + (i / 4) * (W - 2 * pad);
+    ctx.beginPath(); ctx.moveTo(gx, pad); ctx.lineTo(gx, H - pad); ctx.stroke();
+  }
+
+  // Axes (if visible)
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+  if (xMin <= 0 && xMax >= 0) {
+    const x0 = toX(0);
+    ctx.beginPath(); ctx.moveTo(x0, pad); ctx.lineTo(x0, H - pad); ctx.stroke();
+  }
+  if (yMin <= 0 && yMax >= 0) {
+    const y0 = toY(0);
+    ctx.beginPath(); ctx.moveTo(pad, y0); ctx.lineTo(W - pad, y0); ctx.stroke();
+  }
+
+  // Plot curve
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let started = false;
+  for (const p of points) {
+    const sx = toX(p.x);
+    const sy = toY(p.y);
+    if (!started) { ctx.moveTo(sx, sy); started = true; } else { ctx.lineTo(sx, sy); }
+  }
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = "#555";
+  ctx.font = "11px JetBrains Mono, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(xMin.toFixed(1), pad, H - 8);
+  ctx.fillText(xMax.toFixed(1), W - pad, H - 8);
+  ctx.textAlign = "right";
+  ctx.fillText(yMax.toFixed(1), pad - 6, pad + 4);
+  ctx.fillText(yMin.toFixed(1), pad - 6, H - pad + 4);
+
+  // Title
+  ctx.fillStyle = "#888";
+  ctx.font = "12px Poppins, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`y = ${expression}`, pad + 8, pad - 8);
+}
+
+function hideGraph() {
+  graphCanvas.classList.add("hidden");
+}
+
 // ─── Search Logic ────────────────────────────
 
 async function doSearch(query: string) {
   if (!query || query.startsWith(">") || query.startsWith("?")) return;
 
   try {
-    results = await invoke<SearchResult[]>("search_files", { query });
+    // Run math evaluation and fuzzy search in parallel
+    const [mathResult, searchResults] = await Promise.all([
+      invoke<CalcResult | null>("evaluate_math", { query }).catch(() => null),
+      invoke<SearchResult[]>("search_files", { query }),
+    ]);
+
+    currentCalcResult = mathResult ?? null;
+    results = searchResults;
     selectedIndex = 0;
     renderResults();
   } catch (e) {
@@ -430,6 +656,7 @@ searchInput.addEventListener("input", () => {
 
   if (val === "") {
     results = [];
+    currentCalcResult = null;
     selectedIndex = 0;
     renderResults();
     modeIndicator.classList.remove("visible");
@@ -445,7 +672,7 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
   switch (e.key) {
     case "ArrowDown":
       e.preventDefault();
-      if (mode === "search" && results.length > 0) {
+      if (mode === "search" && (results.length > 0 || currentCalcResult)) {
         selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
         renderResults();
         scrollSelectedIntoView();
@@ -454,8 +681,9 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
 
     case "ArrowUp":
       e.preventDefault();
-      if (mode === "search" && results.length > 0) {
-        selectedIndex = Math.max(selectedIndex - 1, 0);
+      if (mode === "search" && (results.length > 0 || currentCalcResult)) {
+        const minIdx = currentCalcResult ? -1 : 0;
+        selectedIndex = Math.max(selectedIndex - 1, minIdx);
         renderResults();
         scrollSelectedIntoView();
       }
@@ -467,6 +695,12 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
         const val = searchInput.value;
         if (val.startsWith(">")) {
           enterShellMode(val.slice(1).trim());
+        } else if (currentCalcResult?.has_variable && selectedIndex === -1) {
+          // Graph mode: plot the equation
+          showGraph(currentCalcResult.expression);
+        } else if (currentCalcResult && !currentCalcResult.has_variable && selectedIndex === -1) {
+          // Copy calc result to clipboard
+          navigator.clipboard.writeText(currentCalcResult.display).catch(() => {});
         } else if (results.length > 0) {
           openResult(selectedIndex);
         }

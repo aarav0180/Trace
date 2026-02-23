@@ -1,4 +1,5 @@
 mod autostart;
+mod calc;
 mod commands;
 mod doc_chat;
 mod indexer;
@@ -86,17 +87,16 @@ pub fn run() {
 
             // Build the file index in the background
             tauri::async_runtime::spawn(async move {
-                // First, add desktop apps to the index
+                // Scan the filesystem first (this replaces the entire index)
+                indexer::build_index(index_for_build.clone(), roots_for_build).await;
+
+                // Now add desktop apps ON TOP of the file index (so they aren't overwritten)
                 let apps = launcher::scan_desktop_apps();
                 {
                     let mut idx = index_for_build.write().await;
                     idx.extend(apps);
+                    println!("[trace] Index ready — {} total entries", idx.len());
                 }
-
-                // Then scan the filesystem
-                indexer::build_index(index_for_build.clone(), roots_for_build).await;
-
-                println!("[trace] Index ready. Starting file watcher...");
 
                 // Start watching for changes
                 watcher::start_watcher(index_for_watch, roots_for_watch).await;
@@ -116,6 +116,9 @@ pub fn run() {
             commands::exit_chat_mode,
             commands::get_system_info,
             commands::get_registered_shortcut,
+            commands::evaluate_math,
+            commands::evaluate_graph,
+            commands::get_app_icon,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Trace");

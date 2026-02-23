@@ -1,4 +1,5 @@
 /// Tauri command handlers — the bridge between the frontend and Rust backend.
+use crate::calc::{self, CalcResult, GraphPoint};
 use crate::doc_chat;
 use crate::indexer::FileIndex;
 use crate::launcher;
@@ -165,6 +166,71 @@ pub fn get_registered_shortcut() -> Result<String, String> {
     std::fs::read_to_string(&path)
         .map(|s| s.trim().to_string())
         .map_err(|_| "No shortcut registered yet".to_string())
+}
+
+// ─── MATH CALCULATOR ─────────────────────────────────────
+
+#[tauri::command]
+pub fn evaluate_math(query: String) -> Option<CalcResult> {
+    calc::evaluate(&query)
+}
+
+#[tauri::command]
+pub fn evaluate_graph(
+    query: String,
+    x_min: f64,
+    x_max: f64,
+    steps: usize,
+) -> Vec<GraphPoint> {
+    calc::evaluate_graph(&query, x_min, x_max, steps)
+}
+
+// ─── APP ICON DATA ───────────────────────────────────────
+
+/// Read an icon file and return it as a data-URI string (base64-encoded).
+/// Keeps IPC simple — no asset-protocol scope configuration needed.
+#[tauri::command]
+pub fn get_app_icon(path: String) -> Option<String> {
+    if path.is_empty() {
+        return None;
+    }
+    let data = std::fs::read(&path).ok()?;
+    let mime = if path.ends_with(".svg") {
+        "image/svg+xml"
+    } else if path.ends_with(".xpm") {
+        "image/x-xpixmap"
+    } else {
+        "image/png"
+    };
+    // Simple base64 encode (no extra crate — we roll a tiny encoder)
+    let b64 = base64_encode(&data);
+    Some(format!("data:{};base64,{}", mime, b64))
+}
+
+/// Minimal base64 encoder (avoids pulling in the `base64` crate for this single use).
+fn base64_encode(input: &[u8]) -> String {
+    const CHARS: &[u8; 64] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
+    for chunk in input.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
+        out.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(CHARS[((triple >> 6) & 0x3F) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(CHARS[(triple & 0x3F) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
 }
 
 // ─── SYSTEM INFO ─────────────────────────────────────────
