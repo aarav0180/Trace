@@ -1,101 +1,91 @@
 <div align="center">
 
-# TRACE
+<img src="src-tauri/icons/128x128@2x.png" width="96" alt="Trace icon" />
 
-### The Intelligence Layer for Your OS
+<h1>TRACE</h1>
 
-[![Built with Tauri](https://img.shields.io/badge/Built_with-Tauri_v2-1B1F23?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
-[![Rust](https://img.shields.io/badge/Rust-1.70+-000000?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-000000?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Platform](https://img.shields.io/badge/Platform-Linux_|_Windows-000000?style=flat-square)](.)
-[![License](https://img.shields.io/badge/License-MIT-000000?style=flat-square)](LICENSE)
+<p><strong>The Intelligence Layer for Your OS</strong></p>
 
-**Instant file search. Natural language shell. AI-powered document chat.**
-**All from a single floating command bar.**
+[![Built with Tauri](https://img.shields.io/badge/Built_with-Tauri_v2-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-CE422B?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Platform](https://img.shields.io/badge/Platform-Linux_|_Windows-4A90E2?style=flat-square&logo=linux&logoColor=white)](.)
+[![License](https://img.shields.io/badge/License-MIT-22C55E?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.3.0-8B5CF6?style=flat-square)](https://github.com/aarav0180/Trace/releases)
 
 <br/>
 
-<img src="https://img.shields.io/badge/Super+F-Launch_Trace-111111?style=for-the-badge&labelColor=000000" alt="Super+T to Launch"/>
+> **Instant file search. Natural language shell. AI-powered document chat.**
+> All from a single floating command bar — summoned with one keypress.
+
+<br/>
+
+<kbd>Super</kbd> + <kbd>F</kbd> → launch Trace from anywhere
 
 </div>
 
 ---
 
-## Overview
+## What is Trace?
 
-Trace is a lightweight, blazing-fast desktop launcher and productivity tool that bridges your operating system to cloud AI. It appears instantly with a single hotkey, finds any file in under 50ms, launches apps, translates plain English into shell commands, and lets you chat with the contents of any file — all without leaving the keyboard.
+Trace is a lightweight, keyboard-driven desktop launcher that bridges your operating system to cloud AI. It hovers over your desktop as a frameless floating bar, appears in under 100ms, and disappears the moment you're done.
 
-Built entirely in **Rust** and **TypeScript**, powered by **Tauri v2**, with cross-platform support for **Linux** and **Windows**.
+- **Find any file** in milliseconds with fuzzy search
+- **Launch any app** by typing its name
+- **Chat with documents** — select a file, press Tab, ask anything
+- **Translate plain English to shell commands** — type `>` and describe what you want
+- **Evaluate math** inline — no calculator app needed
+- Built entirely in **Rust + TypeScript** via **Tauri v2**
 
 ---
 
 ## Features
 
 ### ⚡ Instant File Search
-- Multi-threaded filesystem indexer scans your home directory at startup
-- Real-time file watcher (`inotify` on Linux, `ReadDirectoryChanges` on Windows) keeps the index in sync
-- Fuzzy matching via Skim algorithm — results appear **as you type** (< 50ms)
-- Matched characters are highlighted inline
-- Results scroll to show all matches (up to 20)
+Real-time fuzzy matching as you type — results in **< 50ms**. Multi-threaded indexer scans your home directory at startup; a live file watcher (`inotify` / `ReadDirectoryChanges`) keeps the index in sync with no polling. Matched characters are highlighted inline. Up to 20 results, scrollable.
 
-### 🚀 Universal App Launcher
-- **Linux**: Auto-detects installed applications from `.desktop` files (`/usr/share/applications`, `~/.local/share/applications`, Flatpak, Snap)
-- **Windows**: Scans Start Menu `.lnk` shortcuts for installed programs
-- Apps and files are unified in a single search — type and hit Enter
+### 🚀 App Launcher
+Unified file + app search in a single bar.
+- **Linux** — auto-discovers from `.desktop` files across `/usr/share/applications`, `~/.local/share/applications`, Flatpak, and Snap
+- **Windows** — scans Start Menu `.lnk` shortcuts
 
-### ⌨️ System Shortcut Registration
-- On first launch, Trace registers a **system-level keyboard shortcut** so you can summon it from anywhere
-- Automatically detects your desktop environment and picks the best free key:
-  - **GNOME / Ubuntu / Pop!\_OS / Cinnamon**: `gsettings` custom keybinding (scans for first free `Super+KEY`)
-  - **KDE Plasma**: `kwriteconfig5` / `kwriteconfig6` global shortcut
-  - **i3**: Appends `bindsym $mod+KEY` to config, live-reloads
-  - **Sway**: Appends `bindsym $mod+KEY` to config, live-reloads
-  - **Hyprland**: Appends `bind = $mainMod, KEY` to config (hot-reloads automatically)
-  - **XFCE**: `xfconf-query` keyboard shortcut
-  - **Windows**: Start Menu `.lnk` with `Ctrl+Alt+T` hotkey
-- Key preference order: `T → F → J → Y → K → G → B → N` (first available wins)
-- A toast notification shows the registered shortcut on startup
-- If Trace is already running, pressing the shortcut **toggles** the window (show/hide) via single-instance detection
+### 💬 Document Chat  *(AI-powered)*
+Select any file in results and press **Tab** to enter Chat Mode. File contents are injected into the LLM's context window. Ask questions, get summaries, request rewrites — all without opening another app. Supports source code, Markdown, config files, plain text, and **PDF** files.
 
-### 💬 Document Chat (RAG-Lite)
-- Select any file in search results and press `Tab` to enter **Chat Mode**
-- File contents are injected into the LLM context window
-- Ask questions, request rewrites, get explanations — directly from the command bar
-- Supports plain text, source code, Markdown, and config files
+### 🖥️ Natural Language → Shell
+Type `>` and describe what you want in plain English. Trace translates it to a real shell command via your LLM. **Dangerous commands** (`rm -rf`, `mkfs`, `format`, etc.) are flagged with a warning. Commands are always shown for review — never auto-executed.
 
-### 🖥️ Natural Language Shell
-- Prefix any query with `>` to describe a command in plain English
-- Trace translates it to a shell command via your configured LLM (bash on Linux, cmd on Windows)
-- Dangerous commands (`rm -rf`, `del /s`, `mkfs`, `format`, etc.) are flagged with a warning
-- Commands are **never auto-executed** — always shown for confirmation first
+### 🧮 Inline Math
+Type any expression (`2^10`, `sqrt(144)`, `sin(pi/4)`) and get an instant result without leaving the bar. Variables and equations open a graph panel automatically.
 
 ### 🔑 Bring Your Own Key (BYOK)
-- Plug in your own API keys for **OpenAI**, **Anthropic**, **Google Gemini**, **HuggingFace**, or **OpenRouter**
-- Switch between providers and models from the built-in settings panel
-- Model dropdown filters to show only models available for the selected provider
-- Choose between fast/cheap models and smart/expensive ones per task
-- Open source models available via HuggingFace (Mistral, Llama, Phi, Qwen) and OpenRouter (DeepSeek, Gemma)
+Plug in your API key for any supported provider. Switch models per-task from the built-in settings panel.
+
+| Provider | Fast / Cheap | Smart |
+| :--- | :--- | :--- |
+| **OpenAI** | `gpt-4o-mini` | `gpt-4o` |
+| **Anthropic** | `claude-haiku-4-20250414` | `claude-sonnet-4-20250514` |
+| **Google** | `gemini-2.0-flash` | `gemini-1.5-pro` |
+| **HuggingFace** | `mistralai/Mistral-7B-Instruct` | `Qwen/Qwen2.5-72B-Instruct` |
+| **OpenRouter** | `google/gemma-3-4b-it:free` | `deepseek/deepseek-chat` |
 
 ### 🎨 Noir UI
-- Pure black (`#000000`) floating window with high-contrast white text
-- Typography: **Playfair Display** (headings) + **Poppins** (interface)
-- Frameless, draggable, resizable, always-on-top — feels native to the desktop
-- Smooth CSS transitions on result expansion, no jank
+Pure black (`#000000`) frameless window. **Playfair Display** headings, **Poppins** interface type. Always-on-top, draggable, resizable. Smooth transitions, no jank, feels native.
 
 ---
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
+| Key | Action |
 | :--- | :--- |
-| `Super + F`* | Toggle Trace window (registered system-wide) |
-| `↑` / `↓` | Navigate search results (auto-scrolls into view) |
-| `Enter` | Open file / launch app / send chat message / confirm command |
-| `Tab` | Enter Chat Mode on selected file |
-| `Escape` | Dismiss window / exit Chat Mode / cancel command |
-| `>` prefix | Activate NLP-to-Shell mode |
+| `Super + F` *(or auto-assigned)* | Toggle Trace window system-wide |
+| `↑` / `↓` | Navigate results |
+| `Enter` | Open file / launch app / send message / confirm command |
+| `Tab` | Enter **Chat Mode** on the selected file |
+| `Escape` | Exit chat / cancel command / hide window |
+| `>` prefix | Activate **NLP → Shell** mode |
 
-> *\*The exact key depends on your DE. Trace picks the first available key from `Super+T/F/J/Y/K/G/B/N`. On Windows, `Ctrl+Alt+T` is used. The registered shortcut is shown as a toast notification on startup.*
+> The system shortcut is registered automatically on first launch. If `Super+F` is taken, Trace picks the next free key from `Super+J`, `Super+Y`, `Super+K` … and shows a toast notification with the result.
 
 ---
 
@@ -103,47 +93,46 @@ Built entirely in **Rust** and **TypeScript**, powered by **Tauri v2**, with cro
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Backend** | Rust | File indexing, search, system integration, API dispatch |
-| **Frontend** | TypeScript + HTML/CSS | UI rendering, keyboard navigation, state management |
-| **Framework** | Tauri v2 | Windowing, IPC, single-instance, native shell access |
-| **Search** | `fuzzy-matcher` (Skim) | Sub-50ms fuzzy matching with scored results |
-| **Indexing** | `walkdir` + `notify` | Multi-threaded scan + real-time file watcher |
-| **AI** | OpenAI / Anthropic / Google | NLP-to-Shell translation, document Q&A |
-| **HTTP** | `reqwest` | Async HTTP client for cloud API communication |
+| **Backend** | Rust | Indexing, search, IPC, API dispatch, PDF extraction |
+| **Frontend** | TypeScript + HTML/CSS | UI, keyboard nav, markdown rendering |
+| **Framework** | Tauri v2 | Windowing, IPC, single-instance, native shell |
+| **Search** | `fuzzy-matcher` (Skim) | Sub-50ms fuzzy match with scored results |
+| **Indexing** | `walkdir` + `notify` | Multi-threaded scan + real-time watcher |
+| **PDF** | `pdf-extract` | Native Rust PDF text extraction |
+| **AI** | OpenAI / Anthropic / Google / HF / OpenRouter | Shell translation, document Q&A |
+| **HTTP** | `reqwest` | Async HTTP client for all cloud APIs |
+| **Math** | `meval` | Expression evaluation + graphing |
 
 ---
 
 ## Project Structure
 
 ```
-trace/
-├── index.html                        # App shell
-├── package.json                      # Frontend dependencies
-├── tsconfig.json                     # TypeScript configuration
-├── vite.config.ts                    # Vite bundler config
+Trace/
+├── index.html              # App shell
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
 │
-├── src/                              # ── Frontend ──
-│   ├── main.ts                       # App logic, keyboard nav, Tauri IPC
-│   └── styles.css                    # Noir theme, animations, layout
+├── src/                    # ── Frontend ──────────────────────────────
+│   ├── main.ts             # App logic, keyboard nav, markdown renderer
+│   └── styles.css          # Noir theme, animations, chat styles
 │
-└── src-tauri/                        # ── Backend ──
-    ├── Cargo.toml                    # Rust dependencies
-    ├── tauri.conf.json               # Window config, permissions, build
-    ├── capabilities/
-    │   └── default.json              # Tauri v2 capability permissions
+└── src-tauri/              # ── Backend ────────────────────────────────
+    ├── Cargo.toml
+    ├── tauri.conf.json
     └── src/
-        ├── main.rs                   # Entry point
-        ├── lib.rs                    # App bootstrap, plugin init, single-instance toggle
-        ├── autostart.rs              # System shortcut registration (per DE/OS)
-        ├── indexer.rs                # Multi-threaded filesystem scanner
-        ├── watcher.rs                # Real-time file watcher (inotify / ReadDirectoryChanges)
-        ├── search.rs                 # Fuzzy search engine
-        ├── launcher.rs               # App discovery (.desktop on Linux, .lnk on Windows)
-        ├── settings.rs               # BYOK settings (persisted to config dir)
-        ├── llm.rs                    # Unified LLM client (OpenAI/Anthropic/Google)
-        ├── shell_cmd.rs              # NLP-to-Shell translation & safe execution
-        ├── doc_chat.rs               # Document chat (RAG-Lite)
-        └── commands.rs               # Tauri command handlers (frontend ↔ backend)
+        ├── main.rs         # Entry point
+        ├── lib.rs          # Bootstrap, plugins, single-instance toggle
+        ├── commands.rs     # Tauri IPC command handlers
+        ├── indexer.rs      # Multi-threaded filesystem scanner
+        ├── watcher.rs      # Real-time file watcher
+        ├── search.rs       # Fuzzy search engine
+        ├── launcher.rs     # App discovery (.desktop / .lnk)
+        ├── settings.rs     # BYOK settings (persisted to config dir)
+        ├── llm.rs          # Unified LLM client (5 providers)
+        ├── shell_cmd.rs    # NLP → Shell translation & safe execution
+        └── doc_chat.rs     # Document chat — context trimming, PDF support
 ```
 
 ---
@@ -151,14 +140,14 @@ trace/
 ## Cross-Platform Support
 
 | Feature | Linux | Windows |
-| :--- | :--- | :--- |
-| File search | ✅ `walkdir` | ✅ `walkdir` |
-| File watcher | ✅ `inotify` | ✅ `ReadDirectoryChanges` |
-| App discovery | ✅ `.desktop` files | ✅ Start Menu `.lnk` |
-| App launch | ✅ `Exec=` field parsing | ✅ `open::that` (follows `.lnk`) |
-| System shortcut | ✅ Per-DE registration | ✅ `.lnk` hotkey (`Ctrl+Alt+T`) |
+| :--- | :---: | :---: |
+| File search | ✅ | ✅ |
+| Real-time file watcher | ✅ `inotify` | ✅ `ReadDirectoryChanges` |
+| App discovery | ✅ `.desktop` | ✅ Start Menu `.lnk` |
+| System shortcut | ✅ GNOME / KDE / i3 / Sway / Hyprland / XFCE | ✅ `Ctrl+Alt+T` |
 | Shell commands | ✅ `sh -c` | ✅ `cmd /C` |
-| Settings path | `~/.config/trace/` | `%APPDATA%/trace/` |
+| PDF chat | ✅ | ✅ |
+| Settings path | `~/.config/trace/` | `%APPDATA%\trace\` |
 
 ---
 
@@ -166,9 +155,9 @@ trace/
 
 ### Prerequisites
 
-- **Rust** ≥ 1.70 — [Install](https://rustup.rs)
-- **Node.js** ≥ 18 — [Install](https://nodejs.org)
-- **System libraries** (Linux only):
+- **Rust** ≥ 1.70 → [rustup.rs](https://rustup.rs)
+- **Node.js** ≥ 18 → [nodejs.org](https://nodejs.org)
+- **Linux system libraries:**
   ```bash
   # Debian / Ubuntu
   sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -177,17 +166,12 @@ trace/
   sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3 librsvg
   ```
 
-### Install & Run
+### Run in Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/aarav/trace.git
-cd trace
-
-# Install frontend dependencies
+git clone https://github.com/aarav0180/Trace.git
+cd Trace
 npm install
-
-# Run in development mode (hot-reload)
 npm run tauri dev
 ```
 
@@ -195,119 +179,107 @@ npm run tauri dev
 
 ```bash
 npm run tauri build
+# → src-tauri/target/release/bundle/
 ```
-
-The compiled binary and installer will be in `src-tauri/target/release/bundle/`.
 
 ---
 
 ## Configuration
 
-On first launch, Trace creates a settings file at:
-
-```
-~/.config/trace/settings.json
-```
-
-You can also configure everything from the UI by clicking the **⚙** icon in the search bar.
+Settings are stored at `~/.config/trace/settings.json` (Linux) or `%APPDATA%\trace\settings.json` (Windows).
+Everything is also configurable from the **⚙** icon inside the app.
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
-| `active_provider` | `"openai"` | Cloud AI provider (`openai`, `anthropic`, `google`) |
-| `active_model` | `"gpt-4o-mini"` | Model to use for AI features |
-| `openai_key` | `null` | Your OpenAI API key |
-| `anthropic_key` | `null` | Your Anthropic API key |
-| `google_key` | `null` | Your Google AI (Gemini) API key |
-| `index_roots` | `["~"]` | Directories to index |
-| `max_results` | `20` | Maximum search results displayed |
-
-### Supported Models
-
-| Provider | Fast / Cheap | Smart / Visual |
-| :--- | :--- | :--- |
-| **OpenAI** | `gpt-4o-mini` | `gpt-4o` |
-| **Anthropic** | `claude-haiku-4-20250414` | `claude-sonnet-4-20250514` |
-| **Google** | `gemini-2.0-flash` | `gemini-1.5-pro` |
+| `active_provider` | `"openai"` | AI provider (`openai`, `anthropic`, `google`, `huggingface`, `openrouter`) |
+| `active_model` | `"gpt-4o-mini"` | Model identifier |
+| `openai_key` | `""` | OpenAI API key |
+| `anthropic_key` | `""` | Anthropic API key |
+| `google_key` | `""` | Google AI (Gemini) API key |
+| `huggingface_key` | `""` | HuggingFace Inference API key |
+| `openrouter_key` | `""` | OpenRouter API key |
+| `max_results` | `20` | Max search results shown |
 
 ---
 
 ## Usage
 
-### File Search
-Just start typing. Results appear instantly with matched characters highlighted. All results scroll into view.
-
-### Launch an App
-Type the app name → press `Enter`.
-- **Linux**: Scans `/usr/share/applications`, `~/.local/share/applications`, Flatpak, and Snap directories
-- **Windows**: Scans Start Menu shortcuts
-
 ### Chat with a File
-1. Search for a file
-2. Use `↑`/`↓` to select it
-3. Press `Tab` to enter Chat Mode
-4. Ask anything — *"Rewrite this to use async/await"*, *"Summarize this config"*, etc.
-5. Press `Escape` to exit
+1. Search for any file (text, code, Markdown, PDF…)
+2. Select it with `↑` / `↓`
+3. Press **Tab**
+4. Type your question and press **Enter**
+5. Press **Escape** to return to search
 
-### Natural Language Commands
-1. Type `>` followed by plain English — e.g. `> kill all node processes on port 3000`
-2. Trace shows the generated shell command for review
-3. Press `▶ Run` to execute, or `✕ Cancel` to discard
-4. Output streams back into the panel
+### Natural Language Shell
+1. Type `>` → describe what you want: `> find all files larger than 100MB`
+2. Review the generated command
+3. Press **▶ Run** or **✕ Cancel**
 
-### System Shortcut
-On first launch, Trace registers a system-wide keyboard shortcut and shows a toast notification:
-
-> *Press **Super + F** to launch Trace from anywhere*
-
-If `Super+T` is already taken by your DE, Trace automatically picks the next free key. You can check which shortcut was assigned in `~/.config/trace/shortcut`.
+### Inline Math
+Just type an expression: `sqrt(2) * pi` — the result appears instantly below the input.
 
 ---
 
 ## Roadmap
 
-- [x] **Phase 1** — Instant file search, app launcher, Noir UI, cross-platform (Linux + Windows)
-- [x] **Phase 3** — NLP-to-Shell, Document Chat
-- [ ] **Phase 2** — Context-aware screen query (screenshot → AI), smart clipboard
-- [ ] **Phase 4** — God Mode dashboard, deep-linking (`trace://`), Shift-preview
+- [x] Instant file search + fuzzy matching
+- [x] Universal app launcher (Linux + Windows)
+- [x] Noir UI — frameless, always-on-top
+- [x] System-wide hotkey registration (GNOME / KDE / i3 / Sway / Hyprland / XFCE / Windows)
+- [x] NLP → Shell translation with safety guards
+- [x] Document Chat (RAG-Lite) — text, code, Markdown
+- [x] Inline math evaluator + graphing
+- [x] BYOK: OpenAI, Anthropic, Google, HuggingFace, OpenRouter
+- [x] PDF support in Document Chat
+- [ ] Screenshot → AI context query
+- [ ] Smart clipboard history
+- [ ] `trace://` deep-link protocol
+- [ ] Shift-preview (peek file contents without entering chat)
 
 ---
 
 ## Development
 
-### IDE Setup
-
-- [VS Code](https://code.visualstudio.com/)
-- [Tauri Extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
-- [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
-
 ### Useful Commands
 
 ```bash
-# Type-check frontend
+# Type-check frontend only
 npx tsc --noEmit
 
 # Build Rust backend only
 cargo build --manifest-path src-tauri/Cargo.toml
 
-# Build frontend only
-npx vite build
-
-# Run full app in dev mode
+# Full dev mode (hot-reload)
 npm run tauri dev
+
+# Production build
+npm run tauri build
 ```
+
+### Recommended VS Code Extensions
+
+- [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
+- [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 ---
 
 <div align="center">
 <br/>
 
+<img src="src-tauri/icons/32x32.png" width="20" alt="" />
+
 **Trace** — *Search instantly. Command naturally. Think faster.*
 
 <br/>
+
+[![GitHub](https://img.shields.io/badge/github-aarav0180%2FTrace-181717?style=flat-square&logo=github)](https://github.com/aarav0180/Trace)
+
 </div>
