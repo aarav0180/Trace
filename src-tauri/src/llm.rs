@@ -35,6 +35,24 @@ impl LlmClient {
         }
     }
 
+    /// Parse a response: get raw text first so decode errors show the actual body.
+    async fn parse_response(
+        resp: reqwest::Response,
+        provider: &str,
+    ) -> Result<serde_json::Value, String> {
+        let status = resp.status();
+        let text = resp
+            .text()
+            .await
+            .map_err(|e| format!("{} response read failed: {}", provider, e))?;
+        serde_json::from_str(&text).map_err(|e| {
+            format!(
+                "{} response parse failed (HTTP {}): {} — body: {}",
+                provider, status, e, text
+            )
+        })
+    }
+
     async fn prompt_openai(
         &self,
         api_key: &str,
@@ -49,7 +67,8 @@ impl LlmClient {
                 { "role": "user", "content": user_msg }
             ],
             "temperature": 0.2,
-            "max_tokens": 4096
+            "max_tokens": 4096,
+            "stream": false
         });
 
         let resp = self
@@ -62,10 +81,7 @@ impl LlmClient {
             .await
             .map_err(|e| format!("OpenAI request failed: {}", e))?;
 
-        let data: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse OpenAI response: {}", e))?;
+        let data = Self::parse_response(resp, "OpenAI").await?;
 
         data["choices"][0]["message"]["content"]
             .as_str()
@@ -100,10 +116,7 @@ impl LlmClient {
             .await
             .map_err(|e| format!("Anthropic request failed: {}", e))?;
 
-        let data: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse Anthropic response: {}", e))?;
+        let data = Self::parse_response(resp, "Anthropic").await?;
 
         data["content"][0]["text"]
             .as_str()
@@ -118,6 +131,7 @@ impl LlmClient {
         system: &str,
         user_msg: &str,
     ) -> Result<String, String> {
+        // v1beta supports system_instruction + all current models (gemini-2.0-flash, etc.)
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
             model, api_key
@@ -145,10 +159,7 @@ impl LlmClient {
             .await
             .map_err(|e| format!("Google AI request failed: {}", e))?;
 
-        let data: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse Google AI response: {}", e))?;
+        let data = Self::parse_response(resp, "Google AI").await?;
 
         data["candidates"][0]["content"]["parts"][0]["text"]
             .as_str()
@@ -156,7 +167,11 @@ impl LlmClient {
             .ok_or_else(|| format!("Unexpected Google AI response format: {}", data))
     }
 
-    /// HuggingFace Inference API (OpenAI-compatible chat endpoint)
+    /// HuggingFace Inference Providers — OpenAI-compatible router endpoint.
+    /// URL: https://router.huggingface.co/v1/chat/completions
+    /// Model is passed in the body. Append ":fastest"/":cheapest"/":preferred"
+    /// or ":provider-name" (e.g. "meta-llama/Llama-3.1-8B-Instruct:together")
+    /// to steer provider selection.
     async fn prompt_huggingface(
         &self,
         api_key: &str,
@@ -164,11 +179,6 @@ impl LlmClient {
         system: &str,
         user_msg: &str,
     ) -> Result<String, String> {
-        let url = format!(
-            "https://api-inference.huggingface.co/models/{}/v1/chat/completions",
-            model
-        );
-
         let body = json!({
             "model": model,
             "messages": [
@@ -176,12 +186,13 @@ impl LlmClient {
                 { "role": "user", "content": user_msg }
             ],
             "temperature": 0.2,
-            "max_tokens": 4096
+            "max_tokens": 4096,
+            "stream": false
         });
 
         let resp = self
             .http
-            .post(&url)
+            .post("https://router.huggingface.co/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&body)
@@ -189,10 +200,7 @@ impl LlmClient {
             .await
             .map_err(|e| format!("HuggingFace request failed: {}", e))?;
 
-        let data: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse HuggingFace response: {}", e))?;
+        let data = Self::parse_response(resp, "HuggingFace").await?;
 
         data["choices"][0]["message"]["content"]
             .as_str()
@@ -200,7 +208,7 @@ impl LlmClient {
             .ok_or_else(|| format!("Unexpected HuggingFace response format: {}", data))
     }
 
-    /// OpenRouter API (OpenAI-compatible)
+    /// OpenRouter — OpenAI-compatible, routes to 200+ models.
     async fn prompt_openrouter(
         &self,
         api_key: &str,
@@ -215,7 +223,8 @@ impl LlmClient {
                 { "role": "user", "content": user_msg }
             ],
             "temperature": 0.2,
-            "max_tokens": 4096
+            "max_tokens": 4096,
+            "stream": false
         });
 
         let resp = self
@@ -223,17 +232,14 @@ impl LlmClient {
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
-            .header("HTTP-Referer", "https://github.com/trace-app")
+            .header("HTTP-Referer", "https://github.com/aarav0180/Trace")
             .header("X-Title", "Trace")
             .json(&body)
             .send()
             .await
             .map_err(|e| format!("OpenRouter request failed: {}", e))?;
 
-        let data: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse OpenRouter response: {}", e))?;
+        let data = Self::parse_response(resp, "OpenRouter").await?;
 
         data["choices"][0]["message"]["content"]
             .as_str()

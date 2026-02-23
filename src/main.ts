@@ -508,26 +508,25 @@ async function enterChatMode(index: number) {
   const r = results[index];
   if (!r || r.kind === "App") return;
 
+  const fileName = r.path.split(/[\/\\]/).pop() || r.name;
+
+  // Open the chat panel immediately so errors are visible
+  mode = "chat";
+  chatFilename.textContent = fileName;
+  modeIndicator.textContent = "CHAT";
+  modeIndicator.classList.add("visible");
+  resultsContainer.classList.remove("expanded");
+  chatPanel.classList.remove("hidden");
+  chatMessages.innerHTML = "";
+  searchInput.value = "";
+  searchInput.placeholder = `Ask about ${fileName}...`;
+  resizeWindow(440);
+
   try {
     const preview = await invoke<string>("enter_chat_mode", { path: r.path });
-    mode = "chat";
-    const fileName = r.path.split(/[\/\\]/).pop() || r.name;
-    chatFilename.textContent = fileName;
-    modeIndicator.textContent = "CHAT";
-    modeIndicator.classList.add("visible");
-    resultsContainer.classList.remove("expanded");
-    chatPanel.classList.remove("hidden");
-    chatMessages.innerHTML = "";
-
-    // Show file preview as first assistant message
     addChatMessage("assistant", preview);
-
-    searchInput.value = "";
-    searchInput.placeholder = `Ask about ${fileName}...`;
-
-    resizeWindow(440);
   } catch (e: any) {
-    console.error("[trace] Chat mode error:", e);
+    addChatMessage("assistant", `⚠️ Could not load file: ${e}`);
   }
 }
 
@@ -551,9 +550,113 @@ async function sendChatMessage(question: string) {
 function addChatMessage(role: "user" | "assistant", text: string) {
   const div = document.createElement("div");
   div.className = `chat-msg ${role}`;
-  div.textContent = text;
+  if (role === "assistant") {
+    div.innerHTML = renderMarkdown(text);
+  } else {
+    div.textContent = text;
+  }
   chatMessages.appendChild(div);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+/** Convert a subset of Markdown to safe HTML for LLM response display.
+ *  Uses a line-by-line state machine so code fences are never touched
+ *  by inline formatting or paragraph conversion.
+ */
+function renderMarkdown(raw: string): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  /** Apply inline formatting to an already-HTML-escaped string. */
+  function inline(s: string): string {
+    // Inline code (must come before bold/italic so backticks win)
+    s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+    // Bold
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    // Italic — avoid matching inside bold markers
+    s = s.replace(/\*([^*\n]+?)\*/g, "<em>$1</em>");
+    s = s.replace(/_([^_\n]+?)_/g, "<em>$1</em>");
+    return s;
+  }
+
+  const lines = raw.split("\n");
+  const out: string[] = [];
+  let inFence = false;
+  let fenceLines: string[] = [];
+  let listOpen: "ul" | "ol" | null = null;
+
+  function closeList() {
+    if (listOpen) {
+      out.push(listOpen === "ol" ? "</ol>" : "</ul>");
+      listOpen = null;
+    }
+  }
+
+  for (const line of lines) {
+    // ── fenced code block ──────────────────────────────────────────
+    if (!inFence && /^[ \t]*```/.test(line)) {
+      closeList();
+      inFence = true;
+      fenceLines = [];
+      continue;
+    }
+    if (inFence) {
+      if (/^[ \t]*```/.test(line)) {
+        out.push(`<pre><code>${fenceLines.join("\n")}</code></pre>`);
+        fenceLines = [];
+        inFence = false;
+      } else {
+        fenceLines.push(esc(line));
+      }
+      continue;
+    }
+
+    // ── blank line ─────────────────────────────────────────────────
+    if (line.trim() === "") {
+      closeList();
+      out.push(`<div class="md-spacer"></div>`);
+      continue;
+    }
+
+    const e = esc(line);
+
+    // ── ATX headers ───────────────────────────────────────────────
+    const h = e.match(/^(#{1,3}) (.+)$/);
+    if (h) {
+      closeList();
+      const tag = h[1].length === 1 ? "h4" : "h5";
+      out.push(`<${tag}>${inline(h[2])}</${tag}>`);
+      continue;
+    }
+
+    // ── unordered list ────────────────────────────────────────────
+    const ul = e.match(/^[ \t]*[-*] (.+)$/);
+    if (ul) {
+      if (listOpen !== "ul") { closeList(); out.push("<ul>"); listOpen = "ul"; }
+      out.push(`<li>${inline(ul[1])}</li>`);
+      continue;
+    }
+
+    // ── ordered list ─────────────────────────────────────────────
+    const ol = e.match(/^[ \t]*\d+[.)]\s+(.+)$/);
+    if (ol) {
+      if (listOpen !== "ol") { closeList(); out.push("<ol>"); listOpen = "ol"; }
+      out.push(`<li>${inline(ol[1])}</li>`);
+      continue;
+    }
+
+    // ── regular paragraph line ───────────────────────────────────
+    closeList();
+    out.push(`<p>${inline(e)}</p>`);
+  }
+
+  closeList();
+  // Close any unclosed fence (malformed input)
+  if (inFence && fenceLines.length) {
+    out.push(`<pre><code>${fenceLines.join("\n")}</code></pre>`);
+  }
+
+  return out.join("");
 }
 
 async function exitChatMode() {

@@ -49,6 +49,9 @@ open = "5"
 # Math expression evaluator
 meval = "0.2"
 
+# PDF text extraction
+pdf-extract = "0.7"
+
 [profile.release]
 opt-level = 3
 lto = true
