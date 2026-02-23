@@ -144,7 +144,7 @@ Trace/
 | File search | ✅ | ✅ |
 | Real-time file watcher | ✅ `inotify` | ✅ `ReadDirectoryChanges` |
 | App discovery | ✅ `.desktop` | ✅ Start Menu `.lnk` |
-| System shortcut | ✅ GNOME / KDE / i3 / Sway / Hyprland / XFCE | ✅ `Ctrl+Alt+T` |
+| System shortcut | ✅ GNOME / KDE / i3 / Sway / Hyprland / XFCE | ✅ `Ctrl+Alt+F` |
 | Shell commands | ✅ `sh -c` | ✅ `cmd /C` |
 | PDF chat | ✅ | ✅ |
 | Settings path | `~/.config/trace/` | `%APPDATA%\trace\` |

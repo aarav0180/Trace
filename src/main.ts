@@ -33,6 +33,7 @@ interface GraphPoint {
 interface ShellTranslation {
   command: string;
   is_dangerous: boolean;
+  danger_reason: string;
 }
 
 interface ShellOutput {
@@ -94,6 +95,9 @@ let selectedIndex = 0;
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 let currentCalcResult: CalcResult | null = null;
 
+interface ShellContext { username: string; hostname: string; shell: string; }
+let shellContext: ShellContext = { username: "user", hostname: "localhost", shell: "bash" };
+
 // Icon data-URI cache (icon_path → data:image/... string)
 const iconCache = new Map<string, string>();
 
@@ -108,7 +112,11 @@ const shellCommand = document.getElementById("shell-command") as HTMLElement;
 const shellWarning = document.getElementById("shell-warning") as HTMLElement;
 const shellRun = document.getElementById("shell-run") as HTMLElement;
 const shellCancel = document.getElementById("shell-cancel") as HTMLElement;
-const shellOutput = document.getElementById("shell-output") as HTMLElement;
+const terminalTitle = document.getElementById("terminal-title") as HTMLElement;
+const terminalHistory = document.getElementById("terminal-history") as HTMLElement;
+const terminalPending = document.getElementById("terminal-pending") as HTMLElement;
+const terminalNextRow = document.getElementById("terminal-next-row") as HTMLElement;
+const terminalNextInput = document.getElementById("terminal-next-input") as HTMLInputElement;
 const chatPanel = document.getElementById("chat-panel") as HTMLElement;
 const chatFilename = document.getElementById("chat-filename") as HTMLElement;
 const chatClose = document.getElementById("chat-close") as HTMLElement;
@@ -449,6 +457,27 @@ async function openResult(index: number) {
 
 // ─── Shell Mode (NLP-to-Bash) ────────────────
 
+/** Apply or clear the danger state on the pending command panel. */
+function applyDangerState(t: ShellTranslation) {
+  const btn = shellRun as HTMLButtonElement;
+  if (t.is_dangerous) {
+    shellWarning.innerHTML =
+      `<span class="warn-icon">⚠️</span>` +
+      `<span class="warn-title">Potentially destructive command</span>` +
+      `<span class="warn-body">${escHtml(t.danger_reason)}</span>` +
+      `<span class="warn-note">Run button disabled — copy the command and run it manually if you are certain.</span>`;
+    shellWarning.classList.remove("hidden");
+    btn.disabled = true;
+    btn.classList.add("btn-disabled");
+    shellCommand.classList.add("cmd-dangerous");
+  } else {
+    shellWarning.classList.add("hidden");
+    btn.disabled = false;
+    btn.classList.remove("btn-disabled");
+    shellCommand.classList.remove("cmd-dangerous");
+  }
+}
+
 async function enterShellMode(input: string) {
   mode = "shell";
   modeIndicator.textContent = "COMMAND";
@@ -457,17 +486,18 @@ async function enterShellMode(input: string) {
   shellPanel.classList.remove("hidden");
   shellCommand.textContent = "Thinking...";
   shellWarning.classList.add("hidden");
-  shellOutput.classList.add("hidden");
+  terminalPending.classList.remove("hidden");
+  terminalNextRow.classList.add("hidden");
+  terminalTitle.textContent = `${shellContext.shell} — ${shellContext.username}@${shellContext.hostname}`;
+  searchInput.value = "";
+  searchInput.placeholder = "Press > to run another command, Esc to exit…";
 
-  resizeWindow(220);
+  resizeWindow(300);
 
   try {
     const translation = await invoke<ShellTranslation>("translate_command", { input });
     shellCommand.textContent = translation.command;
-    if (translation.is_dangerous) {
-      shellWarning.classList.remove("hidden");
-      resizeWindow(260);
-    }
+    applyDangerState(translation);
   } catch (e: any) {
     shellCommand.textContent = `Error: ${e}`;
   }
@@ -477,19 +507,58 @@ async function runShellCommand() {
   const cmd = shellCommand.textContent || "";
   if (!cmd || cmd.startsWith("Error:") || cmd === "Thinking...") return;
 
-  shellOutput.textContent = "Running...";
-  shellOutput.classList.remove("hidden");
-  resizeWindow(340);
+  terminalPending.classList.add("hidden");
+
+  const entryDiv = createTerminalEntryDiv(cmd);
+  terminalHistory.appendChild(entryDiv);
+  const outputEl = entryDiv.querySelector(".t-output") as HTMLElement;
+
+  resizeWindow(480);
+  terminalHistory.scrollTop = terminalHistory.scrollHeight;
 
   try {
     const output = await invoke<ShellOutput>("execute_shell", { command: cmd });
     let text = "";
     if (output.stdout) text += output.stdout;
     if (output.stderr) text += (text ? "\n" : "") + output.stderr;
-    if (!text) text = `Exit code: ${output.exit_code}`;
-    shellOutput.textContent = text;
+    if (!text) text = `Process exited with code ${output.exit_code}`;
+    outputEl.textContent = text;
+    outputEl.classList.add(output.exit_code !== 0 ? "t-output-err" : "t-output-ok");
   } catch (e: any) {
-    shellOutput.textContent = `Error: ${e}`;
+    outputEl.textContent = `Error: ${e}`;
+    outputEl.classList.add("t-output-err");
+  }
+
+  terminalNextRow.classList.remove("hidden");
+  terminalNextInput.value = "";
+  terminalNextInput.focus();
+  terminalHistory.scrollTop = terminalHistory.scrollHeight;
+}
+
+function createTerminalEntryDiv(cmd: string): HTMLElement {
+  const div = document.createElement("div");
+  div.className = "t-entry";
+  div.innerHTML = `
+    <div class="t-entry-cmd">
+      <span class="t-prompt-label">${escHtml(shellContext.username)}@${escHtml(shellContext.hostname)}</span><span class="t-prompt-sep"> $ </span><span class="t-cmd-text">${escHtml(cmd)}</span>
+    </div>
+    <pre class="t-output">Running…</pre>
+  `;
+  return div;
+}
+
+async function translateNextCommand(input: string) {
+  terminalNextRow.classList.add("hidden");
+  terminalPending.classList.remove("hidden");
+  shellCommand.textContent = "Thinking...";
+  shellWarning.classList.add("hidden");
+
+  try {
+    const translation = await invoke<ShellTranslation>("translate_command", { input });
+    shellCommand.textContent = translation.command;
+    applyDangerState(translation);
+  } catch (e: any) {
+    shellCommand.textContent = `Error: ${e}`;
   }
 }
 
@@ -497,8 +566,10 @@ function exitShellMode() {
   mode = "search";
   modeIndicator.classList.remove("visible");
   shellPanel.classList.add("hidden");
-  shellOutput.classList.add("hidden");
+  terminalHistory.innerHTML = "";
+  terminalNextRow.classList.add("hidden");
   searchInput.value = "";
+  searchInput.placeholder = "Search files, apps, or type > for commands...";
   resizeWindow(BASE_HEIGHT);
 }
 
@@ -520,7 +591,7 @@ async function enterChatMode(index: number) {
   chatMessages.innerHTML = "";
   searchInput.value = "";
   searchInput.placeholder = `Ask about ${fileName}...`;
-  resizeWindow(440);
+  resizeWindow(580);
 
   try {
     const preview = await invoke<string>("enter_chat_mode", { path: r.path });
@@ -809,6 +880,12 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
         }
       } else if (mode === "chat") {
         sendChatMessage(searchInput.value);
+      } else if (mode === "shell") {
+        const val = searchInput.value.trim();
+        if (val.startsWith(">") && val.length > 1) {
+          searchInput.value = "";
+          translateNextCommand(val.slice(1).trim());
+        }
       }
       break;
 
@@ -837,6 +914,19 @@ searchInput.addEventListener("keydown", (e: KeyboardEvent) => {
 shellRun.addEventListener("click", runShellCommand);
 shellCancel.addEventListener("click", exitShellMode);
 
+// Terminal inline next-command input
+terminalNextInput.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key === "Enter") {
+    const input = terminalNextInput.value.trim();
+    if (!input) return;
+    e.preventDefault();
+    translateNextCommand(input);
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    exitShellMode();
+  }
+});
+
 // Chat close button
 chatClose.addEventListener("click", exitChatMode);
 
@@ -859,6 +949,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Show which system shortcut was registered
   showRegisteredShortcut();
+
+  // Load OS/user context for terminal title bar
+  invoke<ShellContext>("get_shell_context")
+    .then(ctx => { shellContext = ctx; })
+    .catch(() => {});
 });
 
 async function showRegisteredShortcut() {

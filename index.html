@@ -35,16 +35,32 @@
         <canvas id="graph-canvas" class="hidden"></canvas>
       </div>
 
-      <!-- Shell command confirmation -->
+      <!-- Shell terminal panel -->
       <div id="shell-panel" class="hidden">
-        <div id="shell-header">Generated Command</div>
-        <pre id="shell-command"></pre>
-        <div id="shell-warning" class="hidden">⚠ This command may be destructive</div>
-        <div id="shell-actions">
-          <button id="shell-run" class="btn-run">▶ Run</button>
-          <button id="shell-cancel" class="btn-cancel">✕ Cancel</button>
+        <div id="terminal-titlebar">
+          <div id="terminal-dots">
+            <span class="t-dot t-dot-red"></span>
+            <span class="t-dot t-dot-amber"></span>
+            <span class="t-dot t-dot-green"></span>
+          </div>
+          <span id="terminal-title">bash</span>
+          <button id="shell-cancel">✕ Exit</button>
         </div>
-        <pre id="shell-output" class="hidden"></pre>
+        <div id="terminal-body">
+          <div id="terminal-history"></div>
+          <div id="terminal-pending">
+            <div id="shell-header">Generated Command</div>
+            <pre id="shell-command"></pre>
+            <div id="shell-warning" class="hidden">⚠ This command may be destructive</div>
+            <div id="shell-actions">
+              <button id="shell-run" class="btn-run">▶ Run</button>
+            </div>
+          </div>
+          <div id="terminal-next-row" class="hidden">
+            <span class="t-next-prompt">$</span>
+            <input id="terminal-next-input" type="text" placeholder="Describe next command…" autocomplete="off" spellcheck="false" />
+          </div>
+        </div>
       </div>
 
       <!-- Chat mode panel -->

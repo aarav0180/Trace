@@ -115,6 +115,7 @@ pub fn run() {
             commands::chat_message,
             commands::exit_chat_mode,
             commands::get_system_info,
+            commands::get_shell_context,
             commands::get_registered_shortcut,
             commands::evaluate_math,
             commands::evaluate_graph,

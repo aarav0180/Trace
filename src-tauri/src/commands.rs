@@ -114,6 +114,45 @@ pub async fn execute_shell(command: String) -> Result<ShellOutput, String> {
         .map_err(|e| format!("Task failed: {}", e))?
 }
 
+/// Return lightweight OS/user context for the terminal title bar in the UI.
+#[tauri::command]
+pub fn get_shell_context() -> serde_json::Value {
+    let username = std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .unwrap_or_else(|_| "user".to_string());
+
+    let hostname = {
+        #[cfg(not(target_os = "windows"))]
+        let h = std::fs::read_to_string("/etc/hostname")
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        #[cfg(target_os = "windows")]
+        let h = String::new();
+        if h.is_empty() {
+            std::env::var("COMPUTERNAME")
+                .or_else(|_| std::env::var("HOSTNAME"))
+                .unwrap_or_else(|_| "localhost".to_string())
+        } else {
+            h
+        }
+    };
+
+    let shell = if cfg!(windows) {
+        "cmd".to_string()
+    } else {
+        std::env::var("SHELL")
+            .map(|s| s.split('/').last().unwrap_or("bash").to_string())
+            .unwrap_or_else(|_| "bash".to_string())
+    };
+
+    serde_json::json!({
+        "username": username,
+        "hostname": hostname,
+        "shell": shell,
+    })
+}
+
 // ─── DOCUMENT CHAT (Phase 3) ────────────────────────────
 
 #[tauri::command]

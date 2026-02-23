@@ -14,7 +14,7 @@
 ///   Linux Sway: appends bindsym to ~/.config/sway/config
 ///   Linux Hyprland: appends bind to ~/.config/hypr/hyprland.conf
 ///   Linux XFCE: xfconf-query
-///   Windows: Start Menu .lnk with Ctrl+Alt+T hotkey
+///   Windows: Start Menu .lnk with Ctrl+Alt+F hotkey + HKCU Run startup entry
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -787,53 +787,137 @@ Keywords=search;launcher;files;ai;
 //  WINDOWS
 // ═══════════════════════════════════════════════
 
-/// On Windows, create a Start Menu .lnk with Ctrl+Alt+T hotkey.
-/// Windows doesn't support Win+KEY system shortcuts without a running process,
-/// so Ctrl+Alt+T via .lnk Hotkey is the best native approach.
+/// Register Trace on Windows:
+///  1. Start Menu .lnk with Hotkey = Ctrl+Alt+F (triggers when Trace is not running)
+///  2. HKCU\Software\Microsoft\Windows\CurrentVersion\Run entry (launch at login)
+///
+/// Windows does not support Super/Win+KEY shortcuts without a persistent process,
+/// so Ctrl+Alt+F via a .lnk Hotkey field is the best fully-native approach.
+/// The startup entry ensures Trace is always running in the background so the
+/// single-instance toggle (via tauri-plugin-single-instance) handles show/hide.
 #[cfg(target_os = "windows")]
 fn do_register(exe_path: &str) -> Result<String, String> {
-    let display = "Ctrl+Alt+T".to_string();
+    const DISPLAY: &str = "Ctrl+Alt+F";
+    const HOTKEY: &str = "Ctrl+Alt+F";
 
-    let start_menu = match std::env::var("APPDATA") {
-        Ok(appdata) => {
-            PathBuf::from(appdata).join("Microsoft\\Windows\\Start Menu\\Programs")
-        }
-        Err(_) => return Err("APPDATA not set".to_string()),
-    };
+    // ── 1. Start Menu shortcut ────────────────────────────────────────────────
+    let start_menu = std::env::var("APPDATA")
+        .map(|a| {
+            PathBuf::from(a)
+                .join("Microsoft")
+                .join("Windows")
+                .join("Start Menu")
+                .join("Programs")
+        })
+        .map_err(|_| "APPDATA environment variable not set".to_string())?;
 
     std::fs::create_dir_all(&start_menu)
-        .map_err(|e| format!("Cannot create Start Menu dir: {}", e))?;
+        .map_err(|e| format!("Cannot create Start Menu directory: {}", e))?;
 
-    let shortcut_path = start_menu
-        .join("Trace.lnk")
-        .to_string_lossy()
-        .replace('/', "\\");
-    let exe_escaped = exe_path.replace('/', "\\");
+    let lnk = start_menu.join("Trace.lnk");
+    let lnk_str = lnk.to_string_lossy().into_owned();
 
-    let ps = format!(
-        r#"$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('{}'); $sc.TargetPath = '{}'; $sc.Description = 'The Intelligence Layer for your OS'; $sc.Hotkey = 'Ctrl+Alt+T'; $sc.Save()"#,
-        shortcut_path, exe_escaped
+    // PowerShell single-quote escaping: ' → ''
+    let lnk_ps = lnk_str.replace('\'', "''");
+    let exe_ps = exe_path.replace('/', "\\").replace('\'', "''");
+
+    let ps_lnk = format!(
+        "$ws = New-Object -ComObject WScript.Shell; \
+         $sc = $ws.CreateShortcut('{lnk}'); \
+         $sc.TargetPath = '{exe}'; \
+         $sc.Description = 'The Intelligence Layer for your OS'; \
+         $sc.Hotkey = '{hotkey}'; \
+         $sc.WindowStyle = 1; \
+         $sc.Save()",
+        lnk = lnk_ps,
+        exe = exe_ps,
+        hotkey = HOTKEY,
     );
 
-    let out = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps])
-        .output()
-        .map_err(|e| format!("PowerShell failed: {}", e))?;
+    run_powershell(&ps_lnk)
+        .map_err(|e| format!("Start Menu shortcut creation failed: {}", e))?;
 
-    if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("Shortcut creation failed: {}", stderr));
+    println!("[trace][shortcut] Start Menu shortcut: {}", lnk_str);
+
+    // ── 2. Register in Windows startup (HKCU Run) ─────────────────────────────
+    // Wrap exe path in quotes to handle spaces in path names.
+    let exe_reg = exe_path.replace('/', "\\");
+    // Use reg.exe — always available, no PowerShell execution-policy concerns.
+    let out = Command::new("reg")
+        .args([
+            "add",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+            "/v",
+            "Trace",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &format!("\"{}\"" , exe_reg),
+            "/f", // overwrite silently if already exists
+        ])
+        .output()
+        .map_err(|e| format!("reg.exe not available: {}", e))?;
+
+    if out.status.success() {
+        println!("[trace][shortcut] Registered in Windows startup (HKCU Run)");
+    } else {
+        // Non-fatal — shortcut still works, just won't auto-start
+        eprintln!(
+            "[trace][shortcut] Warning: startup registration failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
     }
 
-    println!(
-        "[trace][shortcut] Start Menu shortcut created: {}",
-        shortcut_path
-    );
-    Ok(display)
+    Ok(DISPLAY.to_string())
 }
 
-/// On Windows, the Start Menu .lnk already serves as the app entry.
+/// On Windows the Start Menu .lnk created in do_register is the app entry.
+/// We also ensure a startup entry exists (idempotent, same reg add /f).
 #[cfg(target_os = "windows")]
-fn do_install_entry(_exe_path: &str) -> Result<(), String> {
+fn do_install_entry(exe_path: &str) -> Result<(), String> {
+    // Idempotent — re-runs the startup registration in case do_register was
+    // skipped on first launch (e.g. the shortcut file already existed).
+    let exe_reg = exe_path.replace('/', "\\");
+    let _ = Command::new("reg")
+        .args([
+            "add",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+            "/v",
+            "Trace",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &format!("\"{}\"", exe_reg),
+            "/f",
+        ])
+        .output();
+    Ok(())
+}
+
+/// Run a PowerShell command, returning Err with trimmed stderr on failure.
+#[cfg(target_os = "windows")]
+fn run_powershell(command: &str) -> Result<(), String> {
+    let out = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",   // avoids Restricted-policy errors on fresh Windows installs
+            "-Command",
+            command,
+        ])
+        .output()
+        .map_err(|e| format!("PowerShell execution failed: {}", e))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() { stderr } else { stdout };
+        return Err(format!(
+            "PowerShell exited {} — {}",
+            out.status.code().unwrap_or(-1),
+            detail
+        ));
+    }
     Ok(())
 }
